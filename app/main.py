@@ -1,11 +1,10 @@
 from fastapi import FastAPI
-from app.routes.user_routes import router as user_router
 
-app = FastAPI()
+from app.routes.legal_routes import router as legal_router
 
-app.include_router(user_router)
+app = FastAPI(
+    title="Legal AI Assistant"
+)
 
 
-@app.get("/")
-def home():
-    return {"message": "Server Running"}
+app.include_router(legal_router)
