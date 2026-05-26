@@ -8,9 +8,11 @@ logger = logging.getLogger(__name__)
 
 class LegalAnalysisService:
     def __init__(self):
+        #establishing a secure connection to Groq using your secret API key from the .env file.
         self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
         self.model_id = "llama-3.3-70b-versatile"
         
+        # for converting caseResponse in JSON.
         schema_instructions = CaseResponse.model_json_schema()
         
         self.system_instruction = (
@@ -24,6 +26,11 @@ class LegalAnalysisService:
 
     async def analyze_case(self, case_description: str) -> CaseResponse:
         try:
+            # Here is where you actually ask the AI the question. You send two messages:
+
+            #  The system message: The strict rules you defined above (the actor's script).
+
+        #    The user message: The actual case facts the frontend sent you.
             response = await self.client.chat.completions.create(
                 model=self.model_id,
                 messages=[
