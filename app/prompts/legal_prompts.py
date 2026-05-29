@@ -50,19 +50,21 @@ Assign each section a probability (0.0 to 1.0) based on:
 ## RESPONSE FORMAT
 Respond ONLY with valid JSON. Your response must perfectly match this schema:
 {
+  "primary_offense": "Brief 1-line description of the core crime",
+  "case_summary": "A concise summary of the provided factual narrative",
   "ipc_sections": [
     {
-      "section": "302",
-      "title": "Murder",
-      "probability": 0.95,
+      "section": "392",
+      "title": "Robbery",
+      "probability": 1.00,
       "reason": "Specific reason this section applies based on the case facts"
     }
   ],
   "bns_sections": [
     {
-      "section": "103(1)",
-      "title": "Murder",
-      "probability": 0.95,
+      "section": "311(2)",
+      "title": "Robbery",
+      "probability": 1.00,
       "reason": "Specific reason this section applies under the new Bharatiya Nyaya Sanhita based on the case facts"
     }
   ],
@@ -71,10 +73,22 @@ Respond ONLY with valid JSON. Your response must perfectly match this schema:
       "act_name": "The Arms Act, 1959",
       "applicable_provisions": "Section 25/27",
       "probability": 0.90,
-      "reason": "Applied for recovery and use of unlicensed automatic pistols"
+      "reason": "Applied for recovery and use of unlicensed weapons"
     }
   ],
-  "primary_offense": "Brief 1-line description of the core crime",
+  "reference_cases": [
+    {
+      "title": "Exact legal title of the historical case retrieved from the database context",
+      "case_summary_snippet": "A powerful 2-3 line legal summary of what happened in this reference case based on the provided context",
+      "historical_sections_applied": [
+        {
+          "ipc_section": "Extract the specific IPC section numbers applied in this past case",
+          "bns_equivalent": "Provide the exact modern BNS equivalent section number according to the cheat sheet"
+        }
+      ],
+      "relevance": "Deep explanation of why this specific precedent matches or influences the current user's case narrative"
+    }
+  ],
   "overall_reasoning": "Concise legal analysis connecting the chronological facts to the final charge sheet architecture",
   "overall_severity": "Non-Bailable",
   "cognizable": true
@@ -82,7 +96,64 @@ Respond ONLY with valid JSON. Your response must perfectly match this schema:
 
 ## STRICT RULES
 - Use ONLY bare section numbers like "302" or "103(1)", never prefix them with "IPC" or "BNS" in the JSON values.
+- In the special_and_local_laws array, you MUST explicitly name the keys exactly as 'act_name' and 'applicable_provisions'. Do NOT use 'act' or 'section' as keys.
 - Separate IPC, BNS, and Special Laws into their respective JSON arrays.
-- Include EVERY applicable section across the pre-crime, core-crime, and post-crime stages.
-- If a BNS section is listed in the cheat sheet, use that exact section number. Do NOT hallucinate sections with zero factual basis.
+- You must carefully read the provided REAL HISTORICAL REFERENCE CASES section and accurately populate the 'reference_cases' array with their details.
 """
+
+def format_legal_analysis_contents(case_text: str, reference_cases: list) -> str:
+    """
+    Stitches system prompt, user case text, and crawled reference cases together.
+    Handles empty reference cases gracefully by instructing the AI to focus solely on case_text.
+    """
+    reference_section = ""
+    extra_instruction = ""
+    
+    if reference_cases:
+        reference_section = "\n\n### REAL HISTORICAL REFERENCE CASES FROM LAW DATABASE:\n"
+
+        # Yeh ek loop chalayega aur saare milne wale purane cases ko ek ke baad ek numbering dekar (Case 1, Case 2) ek lambi text list bana dega.
+        for idx, case in enumerate(reference_cases, 1):
+            reference_section += f"Case {idx}: {case}\n"
+    else:
+        # 1. Agar reference cases nahi hain, toh database waala section empty dikhao
+        reference_section = "\n\n### REAL HISTORICAL REFERENCE CASES FROM LAW DATABASE:\nNo historical reference cases are available for this specific facts pattern."
+        
+        # 2. AI ke liye ek strict extra instruction add karo taaki woh hallucinate na kare
+        extra_instruction = (
+            "\n\n⚠️ IMPORTANT NOTE FOR THE AI:\n"
+            "No historical reference cases were found in the database for this incident. "
+            "Do NOT invent or hallucinate any fake court cases. You must leave the 'reference_cases' array "
+            "completely empty [] in the JSON response. However, you MUST still thoroughly analyze the "
+            "provided 'User Case Data' (advocate's text) and predict all applicable IPC, BNS, and Special laws "
+            "with full reasoning as requested."
+        )
+
+    # Final prompt combine karte waqt extra_instruction ko bhi jod dein
+
+
+
+
+    # Sabse upar SYSTEM_PROMPT (Judge waali personality) rehta hai.
+
+# Agar cases nahi mile, toh uske turant baad extra_instruction (warning) jud jati hai.
+
+# Phir case_text (Advocate sahib ka likha hua text) aata hai.
+
+# Aur aakhiri mein reference_section (ya toh real cases, ya fir 'Not Found' ka tag) jud jata hai.
+    return f"System Instructions:\n{SYSTEM_PROMPT}{extra_instruction}\n\nUser Case Data:\nAnalyze this case: {case_text}\n{reference_section}"
+
+
+
+    
+
+KEYWORD_EXTRACTOR_PROMPT = """You are an expert legal annotator. Your task is to analyze the provided legal incident description (FIR text) and extract exactly 3 to 5 highly relevant legal keywords or short phrases.
+
+## RULES:
+- Focus ONLY on legal terms, offense names, weapons, or core actions (e.g., 'Theft', 'Cheating', 'Dowry', 'Knife Injury').
+- Do NOT include generic administrative words like 'Police', 'Station', 'Incharge', 'FIR', 'Sir', 'Dated'.
+- Output ONLY the keywords separated by single spaces. No bullet points, no introduction, no JSON. Just plain text keywords.
+"""
+
+def format_keyword_extraction_prompt(case_text: str) -> str:
+    return f"{KEYWORD_EXTRACTOR_PROMPT}\n\nIncident Text:\n{case_text}"
