@@ -3,8 +3,8 @@ from sqlmodel import Session
 import uuid
 from typing import List
 from app.db.database import get_session
-from app.controllers.case_controller import create_case
-from app.serializers.case_serializer import CaseCreate, CaseResponse
+from app.controllers.crud import create_case
+from app.serializers.legal_case_serializer import CaseCreate, CaseResponse
 
 # Router for cases
 router = APIRouter(prefix="/cases", tags=["Cases"])

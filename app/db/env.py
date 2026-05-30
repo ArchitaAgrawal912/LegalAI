@@ -10,9 +10,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 # Tumhare SQLModel metadata aur tables ko import karna
 from app.models import SQLModel
-from app.models.usertable import User
-from app.models.casetable import Case
-from app.models.ipc_section_table import IpsSection
+from app.models.user import User
+from app.models.legal_case import LegalCase
+from app.models.legal_section import LegalSection
 
 # 🎯 NAYA: Tumhare central config folder se DB URL import kar rahe hain
 from app.config.db_config import DATABASE_URL
