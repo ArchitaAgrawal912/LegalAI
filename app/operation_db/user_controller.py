@@ -1,7 +1,7 @@
 from sqlmodel import Session, select
 from app.models.user_model import User
 from uuid import UUID
-from app.controllers.base_controller import create, delete
+from app.operation_db.base_controller import create, soft_delete, update_and_change
 
 def create_user(session: Session, data: dict) -> User: # actual data received from user
     user = User(**data) # unpacking dictionary
@@ -18,7 +18,7 @@ def create_user(session: Session, data: dict) -> User: # actual data received fr
 
 
 def get_user(session: Session, id: UUID) -> User:
-    query = select(User).where(User.id == id)
+    query = select(User).where(User.id == id, User.is_deleted == False) # see another condition also
     user = session.exec(query).first()
     return user
 
@@ -26,14 +26,12 @@ def get_user(session: Session, id: UUID) -> User:
 # session.exec() query database me bhejta hai -> result laata hai
 # .first() -> single row / object
 
-def update_user(session: Session, id: UUID, data: dict) -> User: # not writing password, because, its not the thing to be updated
+def update_user(session: Session, id: UUID, data: dict) -> User: 
     user = get_user(session, id) # 1.search
 
     if user is None:
         return None # no user found
-    for key, value in data.items():
-        setattr(user, key, value)
-    return create(session, user)
+    return update_and_change(session, user, data)
 
     # setattr(user, key, value) ==> dynamically kisi bhi field set karo.
 
@@ -42,13 +40,12 @@ def update_user(session: Session, id: UUID, data: dict) -> User: # not writing p
     # session.refresh(user) ===> replaced by -> create()
 
 
-def delete_user(session: Session, id: UUID) -> User:
+def delete_user(session: Session, id: UUID) -> bool:
     user = get_user(session, id) # Search the user
-
     if user is None:
         return None
     
-    return delete(session, user)
+    return soft_delete(session, user)
 
 
     # session.delete(user)

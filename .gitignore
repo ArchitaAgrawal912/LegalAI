@@ -1,3 +1,21 @@
-venv/
+# Environment
 .env
+
+# Database
+*.db
+*.sqlite3
+
+# Python
 __pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Alembic
+alembic/versions/*.pyc
