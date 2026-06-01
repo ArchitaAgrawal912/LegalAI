@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 from sqlmodel import Field, Relationship
 from pydantic import EmailStr  # 🎯 Yeh naya import add karna hai
 from app.models.base import BaseModel
-
+from datetime import datetime, timezone  
 # This prevents Circular Imports!
 if TYPE_CHECKING:
     from app.models.legal_case import LegalCase
@@ -14,7 +14,8 @@ class User(BaseModel, table=True):
     phone_no: str 
     password_hash: str
     is_active: bool = Field(default=True)
-    
+    is_deleted: bool = Field(default=False)
+    deleted_at: datetime | None = None
     # Relationship: A user can have many Legal Cases
     cases: List["LegalCase"] = Relationship(back_populates="user")
 

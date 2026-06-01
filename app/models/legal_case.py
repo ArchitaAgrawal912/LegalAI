@@ -4,6 +4,7 @@ from sqlmodel import Field, Relationship
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
 from app.models.base import BaseModel
+from datetime import datetime, timezone  # 🎯 MISSING IMPORTS ADDED
 
 
 
@@ -28,7 +29,8 @@ class LegalCase(BaseModel, table=True):
     status: str = Field(default="pending") 
     
     # Soft delete flag
-    # is_deleted: bool = Field(default=False)
+    is_deleted: bool = Field(default=False)
+    deleted_at: datetime | None = None
 
     # Relationships
     user: "User" = Relationship(back_populates="cases")
