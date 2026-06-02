@@ -18,3 +18,12 @@ class CaseResponse(SQLModel):
     case_description: str
     status: str
     user_id: UUID
+
+class SummaryResponse(SQLModel):
+    id: UUID
+    title: str
+    llm_summary: str
+
+class ApproveRejectRequest(SQLModel):
+    approved: bool
+

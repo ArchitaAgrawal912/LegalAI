@@ -1,6 +1,7 @@
 from sqlmodel import Session, select
 from uuid import UUID
 from app.models.case_model import Case
+from app.controllers.summary_controller import generate_case_summary
 from app.operation_db.base_controller import create, update_and_change, soft_delete
 
 # 1.>>>>>>>>>>> CREATE >>>>>>>>>>>>>
@@ -46,6 +47,42 @@ def get_all_cases(session: Session, user_id: UUID, search: str = None, page: int
     cases = session.exec(query.offset(offset).limit(limit)).all()
     
     return cases
+
+# 6. LLM SUMMARY GET 
+def generate_and_save_summary(session: Session, case_id: UUID) -> Case | None:
+
+    # Fetcing the case....
+    case = get_case(session, case_id)
+    if case is None:
+        return  None
+    
+    # LLM call
+    result = generate_case_summary(case.case_description)
+
+    # Summary Save 
+    return update_and_change(session, case, {
+        "title": result["title"],
+        "llm_summary": result["summary"]
+    })
+
+# 7. APPROVE SUMMARY
+def approve_summary(session: Session, case_id: UUID) -> Case | None:
+    case = get_case(session, case_id)
+    if case is None:
+        return None
+    case.lawyer_approved_summary = case.llm_summary
+    return create(session, case)
+
+# 8. REJECT SUMMARY
+def reject_summary(session: Session, case_id: UUID) -> Case | None:
+    case = get_case(session, case_id)
+    if case is None:
+        return None
+    case.llm_summary = None
+
+    return create(session, case)
+
+
 
 
 # % → SQL Wildcard : Is jagah kuch bhi ho sakta hai.

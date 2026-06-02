@@ -19,7 +19,7 @@ class Case(BaseModel, table=True):
 
     title: str
     case_description: str
-    llm_summary: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    llm_summary: Optional[str] = Field(default=None, sa_column=Column(JSON))
     lawyer_approved_summary: Optional[str] = None
     status: CaseStatus = Field(default=CaseStatus.pending)
     user_id: UUID = Field(foreign_key="users.id")
