@@ -20,7 +20,7 @@ class LegalSection(BaseModel, table=True):
     # Source: Lawyer or LLM
     source: str = Field(default="LLM") 
     has_lawyer_verified: bool = Field(default=False)
-is_deleted: bool = Field(default=False)
+    is_deleted: bool = Field(default=False)
     deleted_at: datetime | None = None
     # Relationship linking back to the Case
     legal_case: "LegalCase" = Relationship(back_populates="sections")

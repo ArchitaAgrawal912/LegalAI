@@ -1,4 +1,4 @@
-from sqlmodel import Session, select, SQLModel or_
+from sqlmodel import Session, select, SQLModel ,or_
 from typing import TypeVar, Type
 from datetime import datetime, timezone  # 🎯 MISSING IMPORTS ADDED
 
@@ -9,7 +9,7 @@ T = TypeVar("T", bound=SQLModel)
 
 def get_object_by_filters(session: Session, model: Type[T], filters: dict) -> T | None:
     """Universal engine: Ek single record laane ke liye (is_deleted check ke sath)"""
-    # Forcefully soft-delete check add kar diya
+  
     filters["is_deleted"] = False
     
     # filter_by(**filters) dictionary ke keys ko column names me convert kar deta hai
@@ -25,7 +25,6 @@ def get_object_by_filters(session: Session, model: Type[T], filters: dict) -> T 
 
 
 
-# 🎯 NAAM THEEK KIYA: get_all_users_by_filters -> get_all_objects_by_filters
 def get_all_objects_by_filters(
     session: Session, 
     model: Type[T], 

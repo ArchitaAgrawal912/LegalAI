@@ -1,5 +1,5 @@
 import uuid
-from sqlmodel import Session 
+from sqlmodel import Session, select, or_
 
 # Models import kiye
 from app.models.user import User
