@@ -1,4 +1,4 @@
-from __future__ import annotations
+# from __future__ import annotations
 from sqlmodel import Field, Relationship, Column
 from sqlalchemy import JSON
 from typing import Optional, List, TYPE_CHECKING
@@ -26,7 +26,7 @@ class Case(BaseModel, table=True):
 
     # Relationship
     user: "User" = Relationship(back_populates="cases")
-    legal_sections: List["LegalSection"] = Relationship(back_populates="case")
+    legal_sections: list["LegalSection"] = Relationship(back_populates="case")
 
     # Optional tab hota hai jab field ki value future me aayegi ya absent ho sakti hai
     # *cases -> variable name

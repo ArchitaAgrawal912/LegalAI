@@ -1,4 +1,4 @@
-from __future__ import annotations
+# from __future__ import annotations
 from sqlmodel import Field, Relationship
 from typing import List, TYPE_CHECKING
 from app.models.base_model import BaseModel
