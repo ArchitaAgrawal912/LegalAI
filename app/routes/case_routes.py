@@ -4,7 +4,7 @@ import uuid
 from typing import List, Optional  # 🎯 Optional import kiya yahan
 
 from app.db.database import get_session
-from app.models.crud import create_case, get_cases_by_user  # 🎯 search_cases import kiya yahan
+from app.models.crud import create_case, get_cases_by_user , search_cases # 🎯 search_cases import kiya yahan
 from app.serializers.legal_case_serializer import CaseCreate, CaseResponse
 
 # Router for cases
