@@ -1,65 +1,70 @@
-# app/serializers/user_serializer.py
-
+import uuid
+from typing import List, Optional
 from pydantic import BaseModel, Field
-from typing import List
 
-# SWAGGER INPUT MODEL
-class CaseAnalysisRequest(BaseModel):
-    case_text: str = Field(
-        ..., 
-        example="Three masked men entered a bank at 2:00 PM, held the cashier at gunpoint, stole 10 Lakh rupees, and shot a guard in the leg while fleeing in a stolen car."
-    )
-
-# SUB-MODELS (To structure the exact JSON format of your prompt)
+# ==========================================
+# 🎯 SECTION DETAILS (For List Generation)
+# ==========================================
 class SectionDetail(BaseModel):
-    section: str
-    title: str
-    probability: float
-    reason: str
+    section: str = Field(example="Section 378")
+    title: str = Field(example="Theft")
+    probability: float = Field(example=0.95)
+    reason: str = Field(example="Because the phone was snatched without consent.")
 
-class SpecialLawDetail(BaseModel):
-    act_name: str
-    applicable_provisions: str
-    probability: float
-    reason: str
+# ==========================================
+# ⚖️ API 2: ANALYZE CHARGES
+# ==========================================
+class ChargeAnalysisRequest(BaseModel):
+    case_id: uuid.UUID
+    lawyer_approved_summary: str
 
-# NEW SUB-MODELS FOR REFERENCE CASES
-class HistoricalSectionDetail(BaseModel):
-    ipc_section: str
-    bns_equivalent: str
-
-class ReferenceCaseDetail(BaseModel):
-    title: str
-    case_summary_snippet: str
-    historical_sections_applied: List[HistoricalSectionDetail]
-    relevance: str
-
-# SWAGGER OUTPUT MODEL (Perfect match with your prompt schema)
-# This is the response we will get at frontend
-class CaseAnalysisResponse(BaseModel):
-    primary_offense: str
-    case_summary: str  # <-- Added missing field to prevent validation errors
+class ChargeAnalysisResponse(BaseModel):
+    message: str
+    # 🎯 Yahan list aayegi jisme bohot saare sections honge!
     ipc_sections: List[SectionDetail]
     bns_sections: List[SectionDetail]
-    special_and_local_laws: List[SpecialLawDetail]
-    reference_cases: List[ReferenceCaseDetail]  # <-- Added reference cases array
-    overall_reasoning: str
-    overall_severity: str
-    cognizable: bool
+
+# ==========================================
+# ✅ API 3: APPROVE/REJECT REVIEW
+# ==========================================
+class SectionReviewRequest(BaseModel):
+    is_approved: bool
+    rejection_reason: str | None = None
+
+class SectionReviewResponse(BaseModel):
+    message: str
+    section_id: uuid.UUID
+    is_approved: bool
+    rejection_reason: str | None
+    
+    # Frontend display ke liye poori detail wapas bhej rahe hain
+    section_name: str 
+    title: str
+    probability: float
+    reason: str
 
 
 
 
+class CaseAnalysisRequest(BaseModel):
+    user_id: uuid.UUID = Field(
+        ..., 
+        example="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
+    raw_description: str = Field(
+        ..., 
+        example="On 15th May, my iPhone was snatched by two unknown men on a bike..."
+    )
 
-
-
-
-
-
-
-
-
-
+# ==========================================
+class CaseAnalysisResponse(BaseModel):
+    case_id: uuid.UUID 
+    title: str = Field(
+        example="Mobile Snatching and Physical Assault"
+    )
+    llm_summary: str = Field(
+        example="The complainant reported an incident where two unidentified individuals snatched an iPhone 14..."
+    )
 
 
 

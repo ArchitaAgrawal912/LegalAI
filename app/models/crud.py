@@ -76,7 +76,6 @@ def get_section_by_id(session: Session, section_id: uuid.UUID) -> LegalSection |
 def get_sections_by_case(session: Session, case_id: uuid.UUID) -> list[LegalSection]:
     return get_all_objects_by_filters(session, LegalSection, {"case_id": case_id})
 
-
 def update_legal_section(session: Session, section_id: uuid.UUID, **kwargs) -> LegalSection | None:
     section = get_section_by_id(session, section_id)
     if not section: return None
@@ -87,14 +86,9 @@ def delete_legal_section(session: Session, section_id: uuid.UUID) -> bool:
     if not section: return False
     return delete_and_commit(session, section)
 
-
-
-
-
-
-
-
-
+# =====================================================================
+# 🧠 AI & CUSTOM BUSINESS LOGIC CRUD
+# =====================================================================
 def search_cases(
     session: Session, 
     user_id: uuid.UUID = None, 
@@ -118,3 +112,95 @@ def search_cases(
         offset=offset, 
         limit=limit
     )
+
+def save_analyzed_charges_to_db(
+    session: Session, 
+    case_id: uuid.UUID, 
+    lawyer_summary: str, 
+    ipc_list: list, 
+    bns_list: list
+):
+    """Saves case and multiple sections with Title and Probability."""
+    
+    db_case = session.get(LegalCase, case_id)
+    if not db_case:
+        raise ValueError("Case not found")
+
+    db_case.lawyer_approved_summary = lawyer_summary
+    db_case.status = "inprogress"
+    session.add(db_case)
+
+    # 1. IPC Sections Save Karo
+    for item in ipc_list:
+        new_section = LegalSection(
+            case_id=db_case.id,
+            ipc_section=item.get("section", ""),
+            bns_section="N/A", 
+            title=item.get("title", "Unknown offence"),          # 🎯 Naya
+            probability=float(item.get("probability", 0.0)), # 🎯 Naya
+            reason=item.get("reason", ""),
+            source="LLM"
+        )
+        session.add(new_section)
+
+    # 2. BNS Sections Save Karo
+    for item in bns_list:
+        new_section = LegalSection(
+            case_id=db_case.id,
+            ipc_section="N/A",
+            bns_section=item.get("section", ""),
+            title=item.get("title", "Unknown offence"),          # 🎯 Naya
+            probability=float(item.get("probability", 0.0)), # 🎯 Naya
+            reason=item.get("reason", ""),
+            source="LLM"
+        )
+        session.add(new_section)
+
+    session.commit()
+    session.refresh(db_case)
+    return db_case
+
+def create_case_with_summary(
+    session: Session, 
+    user_id: uuid.UUID, 
+    raw_description: str, 
+    title: str, 
+    llm_summary: str
+) -> LegalCase:
+    """Creates a new Legal Case using the utility engine."""
+    
+    new_case = LegalCase(
+        user_id=user_id,
+        title=title,
+        raw_description=raw_description,
+        llm_summary=llm_summary
+    )
+    
+    # 🎯 Seedha tera utility function call kiya!
+    return save_and_refresh(session, new_case)
+
+from app.models.crud_utils import save_and_refresh # (Yeh upar imported hona chahiye)
+
+def update_section_approval(
+    session: Session,
+    section_id: uuid.UUID,
+    is_approved: bool,
+    rejection_reason: str | None = None
+) -> LegalSection:
+    """Updates the approval status of a single generated Legal Section."""
+    try:
+        # 1. Database se section nikalo
+        section = session.get(LegalSection, section_id)
+        if not section:
+            raise ValueError("Legal Section not found")
+
+        # 2. Values update karo
+        section.is_approved = is_approved
+        section.rejection_reason = rejection_reason if not is_approved else None
+
+        # 3. 🎯 Tera Utility Engine Call (Teen line ka code ab 1 line me!)
+        return save_and_refresh(session, section)
+        
+    except Exception as e:
+        session.rollback()
+        raise e
