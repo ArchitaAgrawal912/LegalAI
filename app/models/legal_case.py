@@ -35,6 +35,7 @@ class LegalCase(BaseModel, table=True):
     # Relationships
     user: "User" = Relationship(back_populates="cases")
     sections: List["LegalSection"] = Relationship(back_populates="legal_case")
+    reference_cases: List["ReferenceCase"] = Relationship(back_populates="legal_case")
     # It lets you write simple code like case.user.name to instantly fetch linked data, 
     # saving you from writing massive, complex SQL queries to combine tables.
 

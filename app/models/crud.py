@@ -5,7 +5,7 @@ from sqlmodel import Session, select, or_
 from app.models.user import User
 from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
-
+from app.models.reference_cases import ReferenceCase
 # 🎯 Universal DB Engines import kiye
 from app.models.crud_utils import (
     save_and_refresh, 
@@ -113,52 +113,7 @@ def search_cases(
         limit=limit
     )
 
-def save_analyzed_charges_to_db(
-    session: Session, 
-    case_id: uuid.UUID, 
-    lawyer_summary: str, 
-    ipc_list: list, 
-    bns_list: list
-):
-    """Saves case and multiple sections with Title and Probability."""
-    
-    db_case = session.get(LegalCase, case_id)
-    if not db_case:
-        raise ValueError("Case not found")
 
-    db_case.lawyer_approved_summary = lawyer_summary
-    db_case.status = "inprogress"
-    session.add(db_case)
-
-    # 1. IPC Sections Save Karo
-    for item in ipc_list:
-        new_section = LegalSection(
-            case_id=db_case.id,
-            ipc_section=item.get("section", ""),
-            bns_section="N/A", 
-            title=item.get("title", "Unknown offence"),          # 🎯 Naya
-            probability=float(item.get("probability", 0.0)), # 🎯 Naya
-            reason=item.get("reason", ""),
-            source="LLM"
-        )
-        session.add(new_section)
-
-    # 2. BNS Sections Save Karo
-    for item in bns_list:
-        new_section = LegalSection(
-            case_id=db_case.id,
-            ipc_section="N/A",
-            bns_section=item.get("section", ""),
-            title=item.get("title", "Unknown offence"),          # 🎯 Naya
-            probability=float(item.get("probability", 0.0)), # 🎯 Naya
-            reason=item.get("reason", ""),
-            source="LLM"
-        )
-        session.add(new_section)
-
-    session.commit()
-    session.refresh(db_case)
-    return db_case
 
 def create_case_with_summary(
     session: Session, 
@@ -204,3 +159,66 @@ def update_section_approval(
     except Exception as e:
         session.rollback()
         raise e
+    
+    from app.models.reference_case import ReferenceCase
+
+def save_analyzed_charges_to_db(
+    session: Session, 
+    case_id: uuid.UUID, 
+    lawyer_summary: str, 
+    ipc_list: list, 
+    bns_list: list,
+    reference_cases_list: list # 🎯 Master list jisme kanoon API ka data aayega
+):
+    """Saves case summary, IPC/BNS sections, and Reference cases all together."""
+    
+    db_case = session.get(LegalCase, case_id)
+    if not db_case:
+        raise ValueError("Case not found")
+
+    # 1. Case ko update karo
+    db_case.lawyer_approved_summary = lawyer_summary
+    db_case.status = "inprogress"
+    session.add(db_case)
+
+    # 2. IPC Sections Save Karo
+    for item in ipc_list:
+        new_section = LegalSection(
+            case_id=db_case.id,
+            ipc_section=item.get("section", ""),
+            bns_section="N/A", 
+            title=item.get("title", "Unknown offence"),
+            probability=float(item.get("probability", 0.0)),
+            reason=item.get("reason", ""),
+            source="LLM"
+        )
+        session.add(new_section)
+
+    # 3. BNS Sections Save Karo
+    for item in bns_list:
+        new_section = LegalSection(
+            case_id=db_case.id,
+            ipc_section="N/A",
+            bns_section=item.get("section", ""),
+            title=item.get("title", "Unknown offence"),
+            probability=float(item.get("probability", 0.0)),
+            reason=item.get("reason", ""),
+            source="LLM"
+        )
+        session.add(new_section)
+
+    # 4. 🎯 Reference Cases Save Karo (With is_deleted=False fix)
+    for ref in reference_cases_list:
+        new_ref = ReferenceCase(
+            case_id=db_case.id,
+            title=ref.get("title", "Unknown"),
+            summary=ref.get("summary", ""),
+            ipc_bns_applied=ref.get("ipc_bns_applied", "Not specified"),
+            is_deleted=False  # 🎯 DB error se bachane ke liye
+        )
+        session.add(new_ref)
+
+    # Sab kuch ek sath save!
+    session.commit()
+    session.refresh(db_case)
+    return db_case

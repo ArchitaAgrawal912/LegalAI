@@ -13,7 +13,7 @@ from app.models import SQLModel
 from app.models.user import User
 from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
-
+from app.models.reference_cases import ReferenceCase
 # 🎯 NAYA: Tumhare central config folder se DB URL import kar rahe hain
 from app.config.db_config import DATABASE_URL
 

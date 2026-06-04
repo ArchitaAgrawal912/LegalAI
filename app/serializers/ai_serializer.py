@@ -72,7 +72,19 @@ class CaseAnalysisResponse(BaseModel):
 
 
 
+class ReferenceCaseDetail(BaseModel):
+    title: str 
+    summary: str 
+    ipc_bns_applied: str 
 
+# 📤 UPDATED: Response Model
+class ChargeAnalysisResponse(BaseModel):
+    message: str
+    ipc_sections: List[dict] # Tera purana logic
+    bns_sections: List[dict] # Tera purana logic
+    
+    # 🎯 Frontend ko ab yeh list bhi milegi
+    reference_cases: List[ReferenceCaseDetail]
 
 
 
