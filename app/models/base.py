@@ -1,6 +1,7 @@
-import uuid  # Universal Unique Identifier. It generates a random 36-character string
+from uuid import UUID, uuid4 # Universal Unique Identifier. It generates a random 36-character string
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
+import uuid 
 
 # Helper function to get strict UTC time, but format it so PostgreSQL accepts it
 def get_utc_now():
@@ -8,7 +9,7 @@ def get_utc_now():
 
 class BaseModel(SQLModel):
     # Automatically generates a unique UUID for every new row
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    id: UUID = Field(default_factory=uuid4, primary_key=True, index=True)
 
     # Automatically sets the time when created
     created_at: datetime = Field(

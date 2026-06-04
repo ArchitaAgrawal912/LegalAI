@@ -1,22 +1,13 @@
 # contains the business logic for the /legal/analyze endpoint, which combines AI analysis with real precedent cases from Indian Kanoon.
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from functools import lru_cache
+from fastapi import APIRouter, Depends, status
+from app.api.dependencies import get_legal_service, get_kanoon_service
+from app.errors import server_error_exc
 from app.models.schemas import CaseRequest, CaseResponse
 from app.services.legal_service import LegalAnalysisService
 from app.services.kanoon_service import KanoonService  # <-- NEW: Import the Kanoon Service
 
 router = APIRouter(prefix="/legal", tags=["Legal Intelligence"])
-#for memory optimisation, we use lru_cache to reuse the same service instances across requests.
-@lru_cache()
-def get_legal_service() -> LegalAnalysisService:
-    """Dependency injection to reuse the AI service instance across requests."""
-    return LegalAnalysisService()
-
-@lru_cache()
-def get_kanoon_service() -> KanoonService:
-    """Dependency injection to reuse the Kanoon API service instance."""
-    return KanoonService()  # <-- NEW: Create the Kanoon dependency
 
 @router.post(
     "/analyze", 
@@ -52,7 +43,4 @@ async def analyze_incident(
         return ai_result
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise server_error_exc(e)

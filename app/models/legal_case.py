@@ -1,4 +1,4 @@
-import uuid
+from uuid import UUID
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import Field, Relationship
 from sqlalchemy import Column
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class LegalCase(BaseModel, table=True):
     # Foreign Key now points to a UUID
-    user_id: uuid.UUID = Field(foreign_key="user.id")
+    user_id: UUID = Field(foreign_key="user.id")
     
     title: str
     raw_description: str

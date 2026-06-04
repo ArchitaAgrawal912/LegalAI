@@ -22,7 +22,7 @@ class LegalAnalysisService:
         
         prompt = f"""
         You are an expert legal assistant. Read the following incident description.
-        1. Create a short, professional title for the case.
+        1. Create a short, professional title for the case along with the names of parties involved if mentioned in the description.
         2. Write a clear, objective, one-sentence summary of the facts.
         
         Return ONLY valid JSON in this exact format:

@@ -1,10 +1,10 @@
 # Whenever data comes into your app (from the user) or goes out of your app (from the AI or Kanoon),
 #  this file stops it, measures it, and makes sure it fits the exact shapes defined here.
-
 import uuid
-from typing import Optional
+from uuid import UUID
 # BaseModel is a pre-built engine provided by a Python library called Pydantic. It does all the heavy, boring work of inspecting and verifying data
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from app.errors import invalid_payload_message
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -21,7 +21,7 @@ class CaseRequest(BaseModel):
         description="The facts of the legal incident to be analyzed.",
         max_length=5000
     )
-    user_id: uuid.UUID = Field(
+    user_id: UUID = Field(
         description="The UUID of the user creating this case."
     )
     
@@ -53,7 +53,7 @@ class CaseResponse(BaseModel):
 class LegalCaseCreate(BaseModel):
     title: str = "Untitled Case"
     raw_description: str
-    user_id: uuid.UUID
+    user_id: UUID
     status: str = "pending"
 
 
@@ -64,39 +64,39 @@ class LegalCaseCreate(BaseModel):
 class UserCreate(BaseModel):
     name: str
     email: str # Optionally use EmailStr if you have pydantic[email] installed
-    phone_no: Optional[str] = None
+    phone_no: str | None = None
     password: str = Field(min_length=6)
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone_no: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    email: str | None = None
+    phone_no: str | None = None
+    is_active: bool | None = None
 
 # ==========================================
 # LEGAL CASE SCHEMAS (For CRUD ops)
 # ==========================================
 
 class LegalCaseUpdate(BaseModel):
-    title: Optional[str] = None
-    raw_description: Optional[str] = None
-    status: Optional[str] = None
-    lawyer_approved_summary: Optional[str] = None
-    is_deleted: Optional[bool] = None
+    title: str | None = None
+    raw_description: str | None = None
+    status: str | None = None
+    lawyer_approved_summary: str | None = None
+    is_deleted: bool | None = None
 
 # ==========================================
 # LEGAL SECTION SCHEMAS (For CRUD ops)
 # ==========================================
 class LegalSectionCreate(BaseModel):
-    case_id: uuid.UUID
+    case_id: UUID
     ipc_section: str
     bns_section: str
     reason: str
     source: str = "LLM"
 
 class LegalSectionUpdate(BaseModel):
-    is_approved: Optional[bool] = None
-    has_lawyer_verified: Optional[bool] = None
+    is_approved: bool | None = None
+    has_lawyer_verified: bool | None = None
 
 
  
@@ -105,8 +105,8 @@ class LegalSectionUpdate(BaseModel):
 
 # NEW: The schema for reading a case from the database
 class CaseRead(BaseModel):
-    id: uuid.UUID
-    user_id: uuid.UUID
+    id: UUID
+    user_id: UUID
     title: str
     raw_description: str
     llm_summary: str | None = None
@@ -117,8 +117,8 @@ class CaseRead(BaseModel):
 class Config:
     from_attributes = True  # This tells Pydantic to happily read database rows!
 
-
-class CaseApproveRequest(BaseModel):
+# This schema is for when a lawyer approves a case and submits their final summary.
+class CaseSummaryApproveRequest(BaseModel):
         lawyer_approved_summary: str = Field(
         ..., 
         min_length=10,
@@ -129,3 +129,57 @@ class CaseApproveRequest(BaseModel):
 class DraftResponse(BaseModel):
         title: str
         summary: str
+
+
+# Used in Phase 3 to represent a single charge the lawyer approved/added
+class ChargeItem(BaseModel):
+    ipc_section: str
+    bns_section: str
+    reason: str
+    is_approved: bool
+
+# 1. The new format for the Tick/Cross UI
+class ChargeUpdateItem(BaseModel):
+    # Existing AI charges will have an ID. New charges added by the lawyer won't!
+    id: UUID | None = None 
+    ipc_section: str
+    bns_section: str
+    reason: str
+    is_approved: bool # True if Ticked, False if Crossed
+
+class rejectedChargeItem(BaseModel):
+    id: UUID
+    reason: str
+
+# 2. The payload the frontend sends when they click "Finalize"
+class ChargesActionRequest(BaseModel):
+    approved_id: list[UUID] | None = Field(
+        None,
+        description="List of IDs for charges that the lawyer approved (Ticked)."
+    )
+    rejected_data: list[rejectedChargeItem] | None = Field(
+        None,
+        description="List of objects containing IDs and reasons for charges that the lawyer rejected (Crossed)."
+    )
+
+    @model_validator(mode='after') 
+    def validate_at_least_one_present(self):
+        """
+        Validates that at least one of 'approved_id' or 'rejected_data' 
+        is provided and is not an empty list.
+        """
+        # Evaluates to False if they are None or empty lists ([])
+        has_approved = bool(self.approved_id)
+        has_rejected = bool(self.rejected_data)
+
+        if not has_approved and not has_rejected:
+            raise ValueError(invalid_payload_message())
+        
+        return self
+    # final_charges: list[ChargeUpdateItem]
+
+
+class NewChargeRequest(BaseModel):
+    ipc_section: str
+    bns_section: str
+    reason: str
