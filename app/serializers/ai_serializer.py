@@ -27,22 +27,35 @@ class ChargeAnalysisResponse(BaseModel):
 # ==========================================
 # ✅ API 3: APPROVE/REJECT REVIEW
 # ==========================================
+from pydantic import BaseModel, model_validator
+import uuid
+
 class SectionReviewRequest(BaseModel):
     is_approved: bool
     rejection_reason: str | None = None
+
+    # 🎯 YEH MAGIC VALIDATOR ADD KARO
+    @model_validator(mode='after')
+    def validate_rejection_logic(self) -> 'SectionReviewRequest':
+        # Rule 1: Agar reject kiya hai, toh reason zaroori hai!
+        if not self.is_approved and not self.rejection_reason:
+            raise ValueError("Rejection reason is mandatory when rejecting a section.")
+        
+        # Rule 2: Agar approve kiya hai, toh reason ko zabardasti None kar do (DB clean rakhne ke liye)
+        if self.is_approved:
+            self.rejection_reason = None
+            
+        return self
 
 class SectionReviewResponse(BaseModel):
     message: str
     section_id: uuid.UUID
     is_approved: bool
     rejection_reason: str | None
-    
-    # Frontend display ke liye poori detail wapas bhej rahe hain
     section_name: str 
     title: str
     probability: float
     reason: str
-
 
 
 

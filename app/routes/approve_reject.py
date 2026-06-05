@@ -3,8 +3,10 @@ from sqlmodel import Session
 import uuid
 
 from app.db.database import get_session
-from app.models.crud import update_section_approval
 from app.serializers.ai_serializer import SectionReviewRequest, SectionReviewResponse
+
+# 🎯 SIRF EK CONTROLLER IMPORT KIYA
+from app.controllers.section_review import process_section_review
 
 router = APIRouter(prefix="/approve", tags=["Approve"])
 
@@ -15,28 +17,26 @@ def api_review_legal_section(
     session: Session = Depends(get_session)
 ):
     try:
-        # 1. DB mein approve/reject status update karwa liya
-        updated_section = update_section_approval(
+        # 1. 🧠 Fat Controller Call: DB update aur logic dono yahan handle ho gaye
+        result = process_section_review(
             session=session,
             section_id=section_id,
             is_approved=request.is_approved,
             rejection_reason=request.rejection_reason
         )
+        
+        updated_section = result["updated_section"]
 
-        # 2. Smart Logic: Pata lagao ki IPC bhejna hai ya BNS
-        # Agar IPC "N/A" nahi hai, toh IPC naam do, warna BNS naam do
-        sec_name = updated_section.ipc_section if updated_section.ipc_section != "N/A" else updated_section.bns_section
-
-        # 3. 🎯 Full Response bhej rahe hain jisme saare Pydantic fields hain
+        # 2. 🌐 Frontend Response
         return SectionReviewResponse(
             message="Section review updated successfully.",
             section_id=updated_section.id,
             is_approved=updated_section.is_approved,
             rejection_reason=updated_section.rejection_reason,
-            section_name=sec_name,               # Naya field
-            title=updated_section.title,         # Naya field
-            probability=updated_section.probability, # Naya field
-            reason=updated_section.reason        # Naya field
+            section_name=result["sec_name"],         # 🎯 Controller se aayi value
+            title=updated_section.title,
+            probability=updated_section.probability,
+            reason=updated_section.reason
         )
 
     except ValueError as ve:

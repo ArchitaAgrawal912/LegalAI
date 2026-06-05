@@ -141,7 +141,7 @@ def update_section_approval(
     section_id: uuid.UUID,
     is_approved: bool,
     rejection_reason: str | None = None
-) -> LegalSection:
+):
     """Updates the approval status of a single generated Legal Section."""
     try:
         # 1. Database se section nikalo
@@ -151,16 +151,14 @@ def update_section_approval(
 
         # 2. Values update karo
         section.is_approved = is_approved
-        section.rejection_reason = rejection_reason if not is_approved else None
+        section.rejection_reason = rejection_reason
 
-        # 3. 🎯 Tera Utility Engine Call (Teen line ka code ab 1 line me!)
+        # 3. 🎯 Tera Utility Engine Call
         return save_and_refresh(session, section)
         
     except Exception as e:
         session.rollback()
         raise e
-    
-    from app.models.reference_case import ReferenceCase
 
 def save_analyzed_charges_to_db(
     session: Session, 
