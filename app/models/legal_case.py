@@ -35,7 +35,10 @@ class LegalCase(BaseModel, table=True):
     sections: List["LegalSection"] = Relationship(back_populates="legal_case")
     # It lets you write simple code like case.user.name to instantly fetch linked data, 
     # saving you from writing massive, complex SQL queries to combine tables.
-
+    precedents: list["PrecedentCase"] = Relationship(
+        back_populates="parent_case",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"} 
+    )
 
     # In database design, tables constantly talk to each other.
     #  Your User file needs to import LegalCase to list a user's cases,

@@ -8,14 +8,15 @@ from app.api.dependencies import get_db_session, get_legal_service, get_kanoon_s
 from app.errors import user_not_found_exc, case_not_found_exc, server_error_exc
 from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
-from app.models.schemas import CaseRequest, CaseResponse, CaseRead, CaseSummaryApproveRequest, ChargesActionRequest, NewChargeRequest
+from app.models.schemas import CaseRequest, CaseResponse, CaseRead, CaseSummaryApproveRequest, ChargesActionRequest, NewChargeRequest, PrecedentRead
 from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 from app.services.legal_service import LegalAnalysisService
 from app.services.kanoon_service import KanoonService
 from sqlalchemy import delete
 from sqlalchemy.future import select # Ensure this is imported at the top!
-
+from app.models.precedent import PrecedentCase
+from sqlalchemy import delete
 
 # FIXED: Prefix handles the "/cases" part, so the route below just needs ""
 # This groups all the routes in this file under the /cases URL
@@ -156,123 +157,6 @@ async def approve_summary_and_extract(
         print("🚨 CRITICAL ERROR IN PHASE 2 🚨")
         traceback.print_exc()
         raise server_error_exc(e)
-
-# ==========================================
-# PHASE 3: FINALIZE CHARGES & FETCH KANOON
-# ==========================================
-@router.put(
-    "/{case_id}/finalize", 
-    response_model=CaseResponse, 
-    status_code=status.HTTP_200_OK,
-    summary="Phase 3: Finalize lawyer-approved charges and fetch Kanoon precedents"
-)
-async def finalize_charges_and_fetch_kanoon(
-    case_id: UUID,
-    request: ChargesActionRequest, 
-    db: AsyncSession = Depends(get_db_session),
-    kanoon_service: KanoonService = Depends(get_kanoon_service)
-):
-    try:
-        db_case = await crud.legal_case.get(db, id=case_id)
-        if not db_case:
-            raise case_not_found_exc()
-
-        # 1. Fetch ALL existing draft charges for this case
-        query = select(LegalSection).where(LegalSection.case_id == case_id)
-        result = await db.execute(query)
-        existing_charges = result.scalars().all()
-
-        # Optimize lookups for the loops below
-        approved_ids = set(request.approved_id or [])
-        rejected_dict = {item.id: item.reason for item in (request.rejected_data or [])}
-
-        first_approved_ipc = None
-        final_db_charges = []
-
-        # 2. Apply the lawyer's actions to the existing charges
-        for charge in existing_charges:
-            if charge.id in approved_ids:
-                # SCENARIO A: Lawyer Ticked (Approved)
-                charge.is_approved = True
-                charge.has_lawyer_verified = True
-                
-                if not first_approved_ipc:
-                    first_approved_ipc = charge.ipc_section
-
-            elif charge.id in rejected_dict:
-                # SCENARIO B: Lawyer Crossed (Rejected & Provided Reason)
-                charge.is_approved = False
-                charge.has_lawyer_verified = True
-                charge.reason = rejected_dict[charge.id] # Overwrite with lawyer's rejection reason
-
-            else:
-                # SCENARIO C: Cleanup (Orphan handling)
-                if charge.source == "LLM":
-                    # If an AI draft is missing from the approved list, it was rejected.
-                    charge.is_approved = False
-                    charge.has_lawyer_verified = True
-                elif charge.source == "LAWYER_MANUAL":
-                    # If a manual charge is missing from the lists, leave it alone! 
-                    # It stays approved. We just need to catch it for Kanoon.
-                    if charge.is_approved and not first_approved_ipc:
-                        first_approved_ipc = charge.ipc_section
-            db.add(charge)
-            final_db_charges.append(charge)
-
-        # 3. Call Kanoon API using the FIRST Ticked/Approved charge
-        precedents = []
-        
-        # 1. Extract ONLY the IPC sections that are actively approved
-        approved_sections = [
-            charge.ipc_section 
-            for charge in final_db_charges 
-            if charge.is_approved
-        ]
-        
-        if approved_sections:
-            # OPTIMIZATION: If they approve 10 charges, an "AND" search for all 10 
-            # might return 0 results because it's too strict. 
-            # It's best practice to search using the top 2 or 3 primary charges.
-            top_sections = approved_sections[:3] 
-            
-            # 2. Chain them together: '"Section 441" AND "Section 383"'
-            combined_sections = " AND ".join([f'"{sec}"' for sec in top_sections])
-            
-            # 3. Add the "IPC" keyword to narrow it to penal code rulings
-            search_query = f'({combined_sections}) AND "IPC"' 
-            
-            print(f"🚀 Calling Kanoon API for combined query: {search_query}...")
-            precedents = await kanoon_service.fetch_precedents(search_query=search_query)
-
-        # 4. Mark the case as completed
-        db_case.status = "completed"
-        await db.commit()
-
-        # 5. Format output
-        clean_charges = [
-            {
-                "ipc_section": charge.ipc_section,
-                "bns_equivalent": charge.bns_section, 
-                "offense": "Refer to IPC",            
-                "explanation": charge.reason,         
-                "id": charge.id,
-                "is_approved": charge.is_approved
-            } 
-            for charge in final_db_charges
-            if charge.is_approved
-        ]
-
-        return CaseResponse(
-            case_summary=db_case.lawyer_approved_summary,
-            applicable_charges=clean_charges,
-            precedent_cases=precedents
-        )
-
-    except Exception as e:
-        await db.rollback()
-        print("🚨 CRITICAL ERROR IN PHASE 3 🚨")
-        traceback.print_exc()
-        raise server_error_exc(e)
     
 
 
@@ -322,5 +206,284 @@ async def add_manual_charge(
 
     except Exception as e:
         await db.rollback()
+        traceback.print_exc()
+        raise server_error_exc(e)
+
+# ==========================================
+# PHASE 3A: FINALIZE CHARGES STATUS
+# ==========================================
+@router.put(
+    "/{case_id}/finalize-charges", 
+    status_code=status.HTTP_200_OK,
+    summary="Phase 3A: Save lawyer-approved and rejected charges state to database"
+)
+async def finalize_charges_status(
+    case_id: UUID,
+    request: ChargesActionRequest, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    try:
+        db_case = await crud.legal_case.get(db, id=case_id)
+        if not db_case:
+            raise case_not_found_exc()
+
+        # 1. Fetch ALL existing draft charges for this case
+        query = select(LegalSection).where(LegalSection.case_id == case_id)
+        result = await db.execute(query)
+        existing_charges = result.scalars().all()
+
+        # Optimize lookups for tracking lists
+        approved_ids = set(request.approved_id or [])
+        rejected_dict = {item.id: item.reason for item in (request.rejected_data or [])}
+
+        final_db_charges = []
+
+        # 2. Synchronize lawyer's explicit actions with the database state
+        for charge in existing_charges:
+            if charge.id in approved_ids:
+                # SCENARIO A: Lawyer Ticked (Approved)
+                charge.is_approved = True
+                charge.has_lawyer_verified = True
+
+            elif charge.id in rejected_dict:
+                # SCENARIO B: Lawyer Crossed (Rejected & Reason Provided)
+                charge.is_approved = False
+                charge.has_lawyer_verified = True
+                charge.reason = rejected_dict[charge.id]
+
+            else:
+                # SCENARIO C: Cleanup (Orphan handling)
+                if charge.source == "LLM":
+                    charge.is_approved = False
+                    charge.has_lawyer_verified = True
+                elif charge.source == "LAWYER_MANUAL":
+                    # Keep manual additions safely intact
+                    pass
+
+            db.add(charge)
+            final_db_charges.append(charge)
+
+        # Update transitional status before Kanoon handling
+        db_case.status = "pending_precedents"
+        await db.commit()
+
+        # Return the verified list layout back to the UI
+        clean_charges = [
+            {
+                "id": charge.id,
+                "ipc_section": charge.ipc_section,
+                "bns_equivalent": charge.bns_section, 
+                "offense": "Refer to IPC",            
+                "explanation": charge.reason,         
+                "is_approved": charge.is_approved
+            } 
+            for charge in final_db_charges
+        ]
+
+        return {
+            "message": "Charges successfully locked and verified by lawyer.",
+            "applicable_charges": clean_charges
+        }
+
+    except Exception as e:
+        await db.rollback()
+        print("🚨 CRITICAL ERROR IN CHARGE FINALIZATION 🚨")
+        traceback.print_exc()
+        raise server_error_exc(e)
+
+
+# ==========================================
+# PHASE 3B: FETCH & LOG PRECEDENT CASES
+# ==========================================
+@router.post(
+    "/{case_id}/fetch-precedents", 
+    response_model=CaseResponse, 
+    status_code=status.HTTP_200_OK,
+    summary="Phase 3B: Query Kanoon with approved database charges, save precedents individually"
+)
+async def fetch_and_store_precedents(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    kanoon_service: KanoonService = Depends(get_kanoon_service)
+):
+    try:
+        db_case = await crud.legal_case.get(db, id=case_id)
+        if not db_case:
+            raise case_not_found_exc()
+
+        # 1. Gather ONLY the charges that are actively set to true in the database
+        query = select(LegalSection).where(
+            LegalSection.case_id == case_id,
+            LegalSection.is_approved == True
+        )
+        result = await db.execute(query)
+        approved_db_charges = result.scalars().all()
+
+        precedents = []
+        approved_sections = [charge.ipc_section for charge in approved_db_charges]
+
+        # 2. Execute external search if approved sections exist
+        if approved_sections:
+            # Look at top 3 primary overlapping segments to avoid matching to zero records
+            top_sections = approved_sections[:3]
+            combined_sections = " AND ".join([f'"{sec}"' for sec in top_sections])
+            search_query = f'({combined_sections}) AND "IPC"'
+
+            print(f"🚀 Calling Kanoon API for compound logic criteria: {search_query}...")
+            kanoon_results = await kanoon_service.fetch_precedents(search_query=search_query)
+
+            # Clear out existing relational rows to prevent duplicates if recalculated
+            await db.execute(delete(PrecedentCase).where(PrecedentCase.case_id == case_id))
+
+            # 3. Save each incoming record item into a separate database row
+            for item in kanoon_results:
+               # Use DOT NOTATION here instead of brackets!
+                kanoon_url = f"https://indiankanoon.org/doc/{item.doc_id}/"
+                
+                new_precedent = PrecedentCase(
+                    case_id=db_case.id,
+                    title=item.title,        # <--- Changed from item["title"]
+                    doc_id=item.doc_id,
+                    doc_url=kanoon_url,
+                    ai_score=None # Ready for custom re-ranking models
+                )
+                db.add(new_precedent)
+                precedents.append(new_precedent)
+
+        # 4. Finalize the state machine step completely
+        db_case.status = "completed"
+        await db.commit()
+
+        # 5. Format clean response payloads safely avoiding Pydantic V2 engine panic
+        clean_charges = [
+            {
+                "id": charge.id,
+                "ipc_section": charge.ipc_section,
+                "bns_equivalent": charge.bns_section, 
+                "offense": "Refer to IPC",            
+                "explanation": charge.reason,         
+                "is_approved": charge.is_approved
+            } 
+            for charge in approved_db_charges
+        ]
+
+        # NEW: Clean the precedent database objects into pure dictionaries
+        clean_precedents = [
+            {
+                "id": p.id,
+                "title": p.title,
+                "doc_id": p.doc_id,
+                "doc_url": p.doc_url,
+                "ai_score": p.ai_score
+            }
+            for p in precedents
+        ]
+
+        return CaseResponse(
+            case_summary=db_case.lawyer_approved_summary,
+            applicable_charges=clean_charges,
+            precedent_cases=clean_precedents
+        )
+
+    except Exception as e:
+        await db.rollback()
+        print("🚨 CRITICAL ERROR IN PRECEDENT RETRIEVAL 🚨")
+        traceback.print_exc()
+        raise server_error_exc(e)
+    
+
+
+# ==========================================
+# GET PRECEDENTS
+# ==========================================
+@router.get(
+    "/{case_id}/precedents", 
+    response_model=list[PrecedentRead], 
+    status_code=status.HTTP_200_OK,
+    summary="Get all saved legal precedents for a specific case"
+)
+async def get_case_precedents(
+    case_id: UUID, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    try:
+        # 1. Verify the parent case actually exists
+        db_case = await crud.legal_case.get(db, id=case_id)
+        if not db_case:
+            raise case_not_found_exc()
+
+        # 2. Fetch all precedents linked to this case ID
+        query = select(PrecedentCase).where(PrecedentCase.case_id == case_id)
+        result = await db.execute(query)
+        precedents = result.scalars().all()
+
+        # 3. Return the list (FastAPI & Pydantic automatically format them using PrecedentRead)
+        return precedents
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404) so they don't get caught as 500s
+        raise
+    except Exception as e:
+        print("🚨 CRITICAL ERROR FETCHING PRECEDENTS 🚨")
+        traceback.print_exc()
+        raise server_error_exc(e)
+    
+
+# ==========================================
+# DELETE: SOFT DELETE CASE
+# ==========================================
+@router.delete(
+    "/{case_id}", 
+    status_code=status.HTTP_200_OK,
+    summary="Soft delete a legal case and its associated charges"
+)
+async def delete_case(
+    case_id: UUID, 
+    db: AsyncSession = Depends(get_db_session)
+):
+    try:
+        # 1. Fetch the case (Ensuring it isn't already deleted)
+        query = select(LegalCase).where(
+            LegalCase.id == case_id, 
+            LegalCase.is_deleted == False
+        )
+        result = await db.execute(query)
+        db_case = result.scalar_one_or_none()
+
+        if not db_case:
+            # If it's None, it either never existed or is already deleted
+            raise case_not_found_exc() 
+
+        # 2. Soft delete the parent case
+        db_case.is_deleted = True
+        db.add(db_case)
+
+        # 3. CASCADE: Soft delete all associated IPC sections 
+        # (This prevents orphaned charges from showing up in global searches)
+        sections_query = select(LegalSection).where(
+            LegalSection.case_id == case_id,
+            LegalSection.is_deleted == False
+        )
+        sections_result = await db.execute(sections_query)
+        associated_sections = sections_result.scalars().all()
+
+        for section in associated_sections:
+            section.is_deleted = True
+            db.add(section)
+
+        # Note: If you also added `is_deleted` to `PrecedentCase`, 
+        # you would run a similar loop for them here!
+
+        # 4. Commit the changes
+        await db.commit()
+
+        return {"message": "Case and associated data successfully deleted."}
+
+    except HTTPException:
+        # Catch our 404 so it doesn't get converted to a 500 server error
+        raise
+    except Exception as e:
+        await db.rollback()
+        print("🚨 CRITICAL ERROR DURING CASE DELETION 🚨")
         traceback.print_exc()
         raise server_error_exc(e)

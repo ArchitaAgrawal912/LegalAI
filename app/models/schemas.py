@@ -39,13 +39,21 @@ class ReferenceCase(BaseModel):
     snippet: str = Field(description="A brief text snippet from the judgment.")
     url: str = Field(description="The full URL to the Indian Kanoon document.")
 
+# 1. New schema for reading a Precedent
+class PrecedentRead(BaseModel):
+    id: uuid.UUID
+    title: str
+    doc_id: str
+    doc_url: str             # <--- Now the frontend can just slap this into an <a href> tag!
+    ai_score: float | None = None
+    
 # Update your existing CaseResponse to include the new list
 class CaseResponse(BaseModel):
     case_summary: str = Field(description="A concise one-sentence legal summary of the incident.")
     applicable_charges: list[LegalSection] = Field(description="Comprehensive list of all applicable penal charges.")
     # NEW: We make this optional so the AI doesn't try to generate it. 
     # We will populate it manually from the Kanoon API.
-    precedent_cases: list[ReferenceCase] | None = None
+    precedent_cases: list[PrecedentRead] | None = None
 
 # This schema is strictly for Database Operations. 
 # It acts as a bridge between the API route and the CRUD class.
@@ -183,3 +191,4 @@ class NewChargeRequest(BaseModel):
     ipc_section: str
     bns_section: str
     reason: str
+

@@ -1,11 +1,12 @@
+import os
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 import asyncio
 from logging.config import fileConfig
 import urllib.parse  # NEW IMPORT
-
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
 from alembic import context
 # ==========================================
 # 1. IMPORT YOUR APP'S CONFIG AND MODELS
@@ -13,26 +14,21 @@ from alembic import context
 from sqlmodel import SQLModel
 from app.core.config import settings
 import app.models# This forces SQLModel to read your tables!
-
+from app.models.precedent import PrecedentCase
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-
 # ==========================================
-# SAFELY ENCODE THE DATABASE URL
+# 2. SAFELY PASS THE DATABASE URL
 # ==========================================
-# 1. Break the URL apart
-parsed_url = urllib.parse.urlparse(settings.DATABASE_URL)
+# Get the raw URL (which already has %40 in it)
+raw_url = os.environ.get("DATABASE_URL")
 
-# 2. Safely encode the password
-encoded_password = urllib.parse.quote(parsed_url.password)
+# Just escape the '%' symbol so Alembic's configparser doesn't panic
+safe_url = raw_url.replace("%", "%%")
 
-# 3. Put the URL back together
-safe_url = f"{parsed_url.scheme}://{parsed_url.username}:{encoded_password}@{parsed_url.hostname}:{parsed_url.port}{parsed_url.path}"
-
-# 4. Pass the safe URL to Alembic!
-# (Notice we also have to escape the % symbol by making it %% so configparser doesn't crash)
-config.set_main_option("sqlalchemy.url", safe_url.replace('%', '%%'))
+# Pass it to Alembic!
+config.set_main_option("sqlalchemy.url", safe_url)
 
 
 
