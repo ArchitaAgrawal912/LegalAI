@@ -1,48 +1,41 @@
 # app/controllers/llm_summary.py
 
+import json
 import uuid
 from sqlmodel import Session
-from google import genai
 
-from app.config.ai_config import get_gemini_api_key, GEMINI_MODEL
-
-# 🎯 NAYE IMPORTS: Dono naye prompts ko bula liya
-from app.prompts.llm_summary import format_summary_prompt, format_title_prompt
+# 🎯 NAYA IMPORT: Tera Universal AI Engine
+from app.core.ai_service import call_gemini_llm 
+from app.prompts.llm_summary import format_combined_prompt
 from app.models.crud import create_case_with_summary 
 
+# =================================================================
+# 🧠 MAIN CONTROLLER
+# =================================================================
 def generate_summary_and_save(session: Session, user_id: uuid.UUID, raw_description: str):
     """
-    Takes raw text, makes 2 separate Gemini calls for Title and Summary, 
-    and saves the complete case directly to the Database.
+    Controller logic that uses the resilient Universal AI helper and saves to DB.
     """
     
-    gemini_key = get_gemini_api_key()
-    if not gemini_key:
-        raise Exception("Gemini API Key missing")
+    # 1. Prompt Taiyaar kiya
+    prompt = format_combined_prompt(raw_description)
+    
+    try:
+        # 2. 🤖 Call AI (Retries aur Gemini logic ab ai_service.py handle karega)
+        clean_response_text = call_gemini_llm(prompt)
         
-    ai_client = genai.Client(api_key=gemini_key)
-    
-    # --------------------------------------------------
-    # 🤖 CALL 1: Generate ONLY Summary
-    # --------------------------------------------------
-    summary_prompt = format_summary_prompt(raw_description)
-    summary_response = ai_client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=summary_prompt
-    )
-    llm_summary = summary_response.text.strip()
-    
-    # --------------------------------------------------
-    # 🤖 CALL 2: Generate ONLY Title
-    # --------------------------------------------------
-    title_prompt = format_title_prompt(raw_description)
-    title_response = ai_client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=title_prompt
-    )
-    title = title_response.text.strip()
-    
-    # 🗄️ DATABASE CALL (Dono values milne ke baad DB bhej do)
+        # 3. JSON Parse kiya
+        ai_data = json.loads(clean_response_text)
+        title = ai_data.get("title", "Unknown vs Unknown - Legal Incident")
+        llm_summary = ai_data.get("summary", raw_description)
+        
+    except Exception as e:
+        # Agar 3 retry ke baad bhi fail ho gaya ya JSON format galat aaya
+        print(f"❌ AI Failed completely after retries: {str(e)}")
+        title = "Error Generating Title"
+        llm_summary = raw_description
+
+    # 4. 🗄️ DATABASE CALL 
     new_case = create_case_with_summary(
         session=session,
         user_id=user_id,

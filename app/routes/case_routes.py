@@ -4,7 +4,7 @@ import uuid
 from typing import List, Optional  # 🎯 Optional import kiya yahan
 
 from app.db.database import get_session
-from app.models.crud import create_case, get_cases_by_user , search_cases # 🎯 search_cases import kiya yahan
+from app.models.crud import create_case, get_cases_by_user , search_cases 
 from app.serializers.legal_case_serializer import CaseCreate, CaseResponse
 
 # Router for cases
@@ -13,39 +13,25 @@ router = APIRouter(prefix="/cases", tags=["Cases"])
 # ==========================================
 # 1. BULK CASE ROUTE (Array of Cases daalne ke liye)
 # ==========================================
-@router.post("/bulk", response_model=List[CaseResponse])
-def api_create_multiple_cases(cases_data: List[CaseCreate], session: Session = Depends(get_session)):
-    try:
-        created_cases = []
-        for data in cases_data:
-            # Naye model ke hisaab se fields update kar di
-            new_case = create_case(
-                session=session,
-                title=data.title,
-                raw_description=data.raw_description,
-                user_id=data.user_id
-                # Note: 'status' DB apne aap "pending" set kar dega
-            )
-            created_cases.append(new_case)
-        return created_cases
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Bulk Case Error: {str(e)}")
+# @router.post("/bulk", response_model=List[CaseResponse])
+# def api_create_multiple_cases(cases_data: List[CaseCreate], session: Session = Depends(get_session)):
+#     try:
+#         created_cases = []
+#         for data in cases_data:
+#             # Naye model ke hisaab se fields update kar di
+#             new_case = create_case(
+#                 session=session,
+#                 title=data.title,
+#                 raw_description=data.raw_description,
+#                 user_id=data.user_id
+#                 # Note: 'status' DB apne aap "pending" set kar dega
+#             )
+#             created_cases.append(new_case)
+#         return created_cases
+#     except Exception as e:
+#         raise HTTPException(status_code=400, detail=f"Bulk Case Error: {str(e)}")
 
 # ==========================================
-# 2. SINGLE CASE ROUTE (Sirf 1 Case daalne ke liye)
-# ==========================================
-# @router.post("/", response_model=CaseResponse)
-# def api_create_single_case(case_data: CaseCreate, session: Session = Depends(get_session)):
-#     try:
-#         new_case = create_case(
-#             session=session,
-#             title=case_data.title,
-#             raw_description=case_data.raw_description,
-#             user_id=case_data.user_id
-#         )
-#         return new_case
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=f"Case Error: {str(e)}")
 
 
 # ==========================================

@@ -1,48 +1,37 @@
 # app/core/case_search.py
 
-import httpx
 import json
-from google import genai
-from app.config.ai_config import get_indian_kanoon_api_key, get_gemini_api_key, GEMINI_MODEL
-
-# 🎯 NAYA IMPORT: Tera naya beautify prompt function
+import httpx
+from app.config.ai_config import get_indian_kanoon_api_key
+from app.core.ai_service import call_gemini_llm
 from app.prompts.legal_prompts import format_keyword_extraction_prompt, format_beautify_kanoon_prompt
 
 async def fetch_reference_precedents(case_text: str) -> list:
     """
-    SMART AI MODE: 
-    1. Gemini extracts keywords.
-    2. Indian Kanoon fetches raw historical cases.
-    3. Gemini beautifies the raw data into clean titles, summaries, and extracted IPCs/BNS.
+    Core Logic Engine:
+    1. Extracts smart keywords using Universal AI Service.
+    2. Fetches raw historical cases from Indian Kanoon.
+    3. Beautifies raw cases into clean JSON matching Pydantic schemas.
     """
     
-    print("\n--------------------------------------------------")
-    print("🧠 STEP 1a: Extracting smart legal keywords using Gemini...")
+    # ----------------------------------------------------
+    # PHASE 1: KEYWORD EXTRACTION (LLM CALL 1)
+    # ----------------------------------------------------
+    print("🧠 Service: Extracting smart legal keywords...")
+    keyword_prompt = format_keyword_extraction_prompt(case_text)
     
-    gemini_key = get_gemini_api_key()
-    if not gemini_key:
-        print("⚠️ WARNING: Gemini API key missing, returning empty.")
-        return []
-
     try:
-        ai_client = genai.Client(api_key=gemini_key)
-        prompt_content = format_keyword_extraction_prompt(case_text)
-        ai_response = ai_client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt_content
-        )
-        clean_query = ai_response.text.strip()
-        print(f"🎯 GEMINI EXTRACTED KEYWORDS: '{clean_query}'")
+        clean_query = call_gemini_llm(keyword_prompt)
+        print(f"🎯 Keywords: '{clean_query}'")
     except Exception as ai_err:
-        print(f"❌ Gemini Keyword Extraction Failed: {ai_err}")
-        clean_query = " ".join(case_text.split()[:15])
+        print(f"❌ Keyword Extraction Failed: {ai_err}")
+        clean_query = " ".join(case_text.split()[:10])
 
     # ----------------------------------------------------
     # PHASE 2: INDIAN KANOON API CALL (RAW DATA)
     # ----------------------------------------------------
+    print("🚀 Service: Hitting Indian Kanoon API...")
     api_key = get_indian_kanoon_api_key()
-    print(f"🚀 STEP 1b: Sending AI Keywords to Indian Kanoon...")
-    
     if not api_key:
         return []
 
@@ -60,40 +49,31 @@ async def fetch_reference_precedents(case_text: str) -> list:
             if response.status_code == 200:
                 docs = response.json().get("docs", [])
                 
-                # Extract text into a list
                 for doc in docs[:3]:
                     title = doc.get("title", "").replace("<b>", "").replace("</b>", "").strip()
                     context = doc.get("context", "").replace("<b>", "").replace("</b>", "").strip()
                     headline = doc.get("headline", "").replace("<b>", "").replace("</b>", "").strip()
                     raw_cases_for_llm.append(f"Case Title: {title} | Snippet: {context} {headline}")
             else:
+                print(f"❌ Kanoon API returned status code: {response.status_code}")
                 return []
     except Exception as e:
-        print(f"❌ HTTP CALL FAILED: {e}")
+        print(f"❌ Indian Kanoon HTTP Call Failed: {e}")
         return []
 
     if not raw_cases_for_llm:
         return []
 
     # ----------------------------------------------------
-    # PHASE 3: DEDICATED AI BEAUTIFICATION
+    # PHASE 3: DEDICATED AI BEAUTIFICATION (LLM CALL 2)
     # ----------------------------------------------------
-    print(f"✨ STEP 1c: Beautifying Kanoon results and extracting laws...")
-    
-    # 🎯 PROMPT FILE SE DATA AAYA
+    print("✨ Service: Beautifying Kanoon results into clean JSON...")
     beautify_prompt = format_beautify_kanoon_prompt(raw_cases_for_llm)
 
     try:
-        beautify_response = ai_client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=beautify_prompt
-        )
-        
-        # Clean LLM Output and parse JSON
-        clean_json_text = beautify_response.text.strip().replace("```json", "").replace("```", "").strip()
+        clean_json_text = call_gemini_llm(beautify_prompt)
         final_reference_cases = json.loads(clean_json_text)
         return final_reference_cases
-
     except Exception as e:
         print(f"❌ Gemini Beautification Failed: {e}")
-        return [{"title": "Parse Error", "summary": "Failed to parse data", "ipc_bns_applied": "N/A"}]
+        return []

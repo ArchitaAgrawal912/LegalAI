@@ -1,51 +1,46 @@
+# app/controllers/ipc_bns_generate.py
+
 import json
 import uuid
 from sqlmodel import Session
-from google import genai
 
-from app.config.ai_config import get_gemini_api_key, GEMINI_MODEL
+# 🎯 Universal AI Caller aur Prompt
+from app.core.ai_service import call_gemini_llm
 from app.prompts.legal_prompts import format_judge_prompt
 
-# 🎯 NAYE IMPORTS: Kanoon aur DB ko yahin bula liya
-from app.core.case_search import fetch_reference_precedents
-from app.models.crud import save_analyzed_charges_to_db
+# 🎯 Sirf Charges save karne wala naya CRUD import
+from app.models.crud import save_ipc_bns_to_db
 
-async def generate_and_save_charges(session: Session, case_id: uuid.UUID, approved_summary: str):
+def generate_and_save_ipc_bns(session: Session, case_id: uuid.UUID, approved_summary: str):
     """
-    Orchestrates LLM generation, Kanoon precedents fetching, 
-    and saves everything to the database.
+    Calls Gemini to generate IPC/BNS sections and saves them to the DB.
     """
-    # 1. 🤖 LLM CALL (IPC/BNS nikalna)
-    gemini_key = get_gemini_api_key()
-    if not gemini_key:
-        raise Exception("Gemini API Key missing")
-        
-    ai_client = genai.Client(api_key=gemini_key)
+    
+    # 1. 🤖 Prompt Taiyaar Karo
     prompt_content = format_judge_prompt(approved_summary)
     
-    response = ai_client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt_content
-    )
+    # 2. ⚡ Universal AI Service Call (Retries automatically handle honge)
+    clean_text = call_gemini_llm(prompt_content)
     
-    raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
-    llm_data = json.loads(raw_text)
+    # 3. 🧹 JSON Data Parse Karo (With Safety Net)
+    try:
+        llm_data = json.loads(clean_text)
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON Parsing failed in IPC/BNS generation: {e}")
+        # Fallback agar JSON break ho jaye
+        llm_data = {"ipc_sections": [], "bns_sections": []}
     
     ipc_list = llm_data.get("ipc_sections", [])
     bns_list = llm_data.get("bns_sections", [])
 
-    # 2. 📡 INDIAN KANOON CALL (AWAIT lagana zaroori hai)
-    raw_precedents = await fetch_reference_precedents(approved_summary)
-
-    # 3. 🗄️ DATABASE CALL (Seedha CRUD mein bhej diya)
-    save_analyzed_charges_to_db(
+    # 4. 🗄️ DATABASE CALL (Sirf specific CRUD function hit hoga)
+    save_ipc_bns_to_db(
         session=session,
         case_id=case_id,
         lawyer_summary=approved_summary,
         ipc_list=ipc_list,
-        bns_list=bns_list,
-        reference_cases_list=raw_precedents
+        bns_list=bns_list
     )
 
-    # Router ko sirf woh data wapas karo jo UI ko bhejna hai
-    return ipc_list, bns_list, raw_precedents
+    # 5. Router ko clean data return karo
+    return ipc_list, bns_list

@@ -31,8 +31,7 @@ class LegalSection(BaseModel, table=True):
     source: str = Field(default="LLM") 
     
     # Soft Delete Flags
-    is_deleted: bool = Field(default=False)
-    deleted_at: datetime | None = None
+  
     
     # Relationship linking back to the Case
     legal_case: "LegalCase" = Relationship(back_populates="sections")

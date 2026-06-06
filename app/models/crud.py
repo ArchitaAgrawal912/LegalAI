@@ -35,8 +35,19 @@ def update_user(session: Session, user_id: uuid.UUID, **kwargs) -> User | None:
     return apply_updates_and_save(session, user, kwargs)
 
 def delete_user(session: Session, user_id: uuid.UUID) -> bool:
-    user = get_object_by_id(session, user_id)
-    if not user: return False
+
+    user = get_object_by_id(session, user_id) 
+    if not user:
+        return False
+    
+    # 1. Pehle us user ke saare cases nikal lo
+    user_cases = get_cases_by_user(session, user_id, limit=1000) # limit high rakho
+    
+    # 2. Har case ke liye wahi delete_case logic chalao
+    for case in user_cases:
+        delete_case(session, case.id)
+        
+    # 3. Last mein User khud delete karo
     return delete_and_commit(session, user)
 
 # =====================================================================
@@ -57,10 +68,23 @@ def update_case(session: Session, case_id: uuid.UUID, **kwargs) -> LegalCase | N
     case = get_case_by_id(session, case_id)
     if not case: return None
     return apply_updates_and_save(session, case, kwargs)
+# app/models/crud.py
 
 def delete_case(session: Session, case_id: uuid.UUID) -> bool:
+    """Case delete karo aur uske saare sections & references bhi soft delete karo."""
     case = get_case_by_id(session, case_id)
-    if not case: return False
+    if not case:
+        return False
+    
+    # 1. Saare Sections soft delete karo
+    sections = get_sections_by_case(session, case_id)
+    for section in sections:
+        delete_and_commit(session, section)
+        
+    # 2. Saare Reference Cases soft delete karo
+    delete_all_references_for_case(session, case_id)
+    
+    # 3. Main Case delete karo
     return delete_and_commit(session, case)
 
 # =====================================================================
@@ -85,6 +109,69 @@ def delete_legal_section(session: Session, section_id: uuid.UUID) -> bool:
     section = get_section_by_id(session, section_id)
     if not section: return False
     return delete_and_commit(session, section)
+
+
+
+
+# =====================================================================
+# 📚 REFERENCE CASE CRUD
+# =====================================================================
+from app.models.reference_cases import ReferenceCase
+
+def get_reference_by_id(session: Session, ref_id: uuid.UUID) -> ReferenceCase | None:
+    """Ek specific reference case laane ke liye."""
+    # Tera universal engine automatically is_deleted=False handle kar lega!
+    return get_object_by_filters(session, ReferenceCase, {"id": ref_id})
+
+def get_references_by_case(session: Session, case_id: uuid.UUID, offset: int = 0, limit: int = 10) -> list[ReferenceCase]:
+    """Ek case ke saare active reference cases laane ke liye."""
+    return get_all_objects_by_filters(
+        session, 
+        ReferenceCase, 
+        {"case_id": case_id}, 
+        offset=offset, 
+        limit=limit
+    )
+
+def update_reference(session: Session, ref_id: uuid.UUID, **kwargs) -> ReferenceCase | None:
+    """Agar admin/lawyer AI generated title ya summary ko edit karna chahe."""
+    ref = get_reference_by_id(session, ref_id)
+    if not ref: 
+        return None
+    return apply_updates_and_save(session, ref, kwargs)
+
+def delete_reference(session: Session, ref_id: uuid.UUID) -> bool:
+    """Single reference case ko soft delete karne ke liye."""
+    ref = get_reference_by_id(session, ref_id)
+    if not ref: 
+        return False
+    # Tera universal engine isko automatically is_deleted = True kar dega!
+    return delete_and_commit(session, ref)
+
+
+def delete_all_references_for_case(session: Session, case_id: uuid.UUID) -> bool:
+    """Ek main LegalCase delete hone par uske saare reference cases ko soft delete karega."""
+    
+    # 1. Pehle us case id wale saare active references nikal lo
+    references = get_references_by_case(session, case_id)
+    
+    # 2. Loop chala kar ek-ek karke sabko delete(soft) kar do
+    for ref in references:
+        delete_and_commit(session, ref)
+        
+    return True
+
+
+
+
+
+
+
+
+
+
+
+
 
 # =====================================================================
 # 🧠 AI & CUSTOM BUSINESS LOGIC CRUD
@@ -160,26 +247,21 @@ def update_section_approval(
         session.rollback()
         raise e
 
-def save_analyzed_charges_to_db(
-    session: Session, 
-    case_id: uuid.UUID, 
-    lawyer_summary: str, 
-    ipc_list: list, 
-    bns_list: list,
-    reference_cases_list: list # 🎯 Master list jisme kanoon API ka data aayega
-):
-    """Saves case summary, IPC/BNS sections, and Reference cases all together."""
+
+
+def save_ipc_bns_to_db(session: Session, case_id: uuid.UUID, lawyer_summary: str, ipc_list: list, bns_list: list):
+    """Saves ONLY the generated IPC and BNS sections to the database."""
     
     db_case = session.get(LegalCase, case_id)
     if not db_case:
         raise ValueError("Case not found")
 
-    # 1. Case ko update karo
+    # Update case status
     db_case.lawyer_approved_summary = lawyer_summary
     db_case.status = "inprogress"
     session.add(db_case)
 
-    # 2. IPC Sections Save Karo
+    # Save IPC Sections
     for item in ipc_list:
         new_section = LegalSection(
             case_id=db_case.id,
@@ -192,7 +274,7 @@ def save_analyzed_charges_to_db(
         )
         session.add(new_section)
 
-    # 3. BNS Sections Save Karo
+    # Save BNS Sections
     for item in bns_list:
         new_section = LegalSection(
             case_id=db_case.id,
@@ -205,18 +287,34 @@ def save_analyzed_charges_to_db(
         )
         session.add(new_section)
 
-    # 4. 🎯 Reference Cases Save Karo (With is_deleted=False fix)
+    session.commit()
+    return db_case
+
+
+
+
+def save_reference_cases_to_db(
+    session: Session, 
+    case_id: uuid.UUID, 
+    reference_cases_list: list
+):
+    """Saves ONLY the Indian Kanoon reference cases to the database."""
+    
+    # Agar list khali hai toh faaltu DB commit mat karo
+    if not reference_cases_list:
+        return False 
+
     for ref in reference_cases_list:
         new_ref = ReferenceCase(
-            case_id=db_case.id,
+            case_id=case_id,
             title=ref.get("title", "Unknown"),
             summary=ref.get("summary", ""),
             ipc_bns_applied=ref.get("ipc_bns_applied", "Not specified"),
-            is_deleted=False  # 🎯 DB error se bachane ke liye
+            is_deleted=False  # Humne model mein column add kar diya hai, toh yeh safely chalega
         )
         session.add(new_ref)
 
-    # Sab kuch ek sath save!
     session.commit()
-    session.refresh(db_case)
-    return db_case
+    return True
+
+   

@@ -59,45 +59,58 @@ class SectionReviewResponse(BaseModel):
 
 
 
+
+# ==========================================
+# 🟢 PHASE 1: SUMMARY & TITLE (Purana wala ekdum sahi hai)
+# ==========================================
 class CaseAnalysisRequest(BaseModel):
-    user_id: uuid.UUID = Field(
+    user_id: uuid.UUID = Field(..., example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    raw_description: str = Field(..., example="On 15th May, my iPhone was snatched by two unknown men on a bike...")
+
+class CaseAnalysisResponse(BaseModel):
+    case_id: uuid.UUID 
+    title: str = Field(example="Mobile Snatching and Physical Assault")
+    llm_summary: str = Field(example="The complainant reported an incident where two unidentified individuals snatched an iPhone 14...")
+
+
+# ==========================================
+# 🟡 PHASE 2: COMMON REQUEST (Dono naye routes yahi use karenge)
+# ==========================================
+class ChargeAnalysisRequest(BaseModel):
+    """Kyunki IPC aur Kanoon dono ko case_id aur approved text chahiye"""
+    case_id: uuid.UUID = Field(..., example="51661606-04a6-4d5d-9616-2d4f3e4a5c33")
+    lawyer_approved_summary: str = Field(
         ..., 
-        example="3fa85f64-5717-4562-b3fc-2c963f66afa6"
-    )
-    raw_description: str = Field(
-        ..., 
-        example="On 15th May, my iPhone was snatched by two unknown men on a bike..."
+        example="The accused intercepted the complainant and forcefully snatched the mobile phone."
     )
 
 # ==========================================
-class CaseAnalysisResponse(BaseModel):
-    case_id: uuid.UUID 
-    title: str = Field(
-        example="Mobile Snatching and Physical Assault"
-    )
-    llm_summary: str = Field(
-        example="The complainant reported an incident where two unidentified individuals snatched an iPhone 14..."
-    )
+# 🔵 PHASE 2A: RESPONSE FOR IPC/BNS ROUTE (`/charges/analyze`)
+# ==========================================
+class ChargeOnlyResponse(BaseModel):
+    message: str
+    ipc_sections: List[dict] 
+    bns_sections: List[dict] 
 
-
-
-
-
-
-
+# ==========================================
+# 🟣 PHASE 2B: RESPONSE FOR KANOON ROUTE (`/references/fetch`)
+# ==========================================
 class ReferenceCaseDetail(BaseModel):
     title: str 
-    summary: str 
+    
     ipc_bns_applied: str 
 
-# 📤 UPDATED: Response Model
-class ChargeAnalysisResponse(BaseModel):
+class ReferenceOnlyResponse(BaseModel):
     message: str
-    ipc_sections: List[dict] # Tera purana logic
-    bns_sections: List[dict] # Tera purana logic
-    
-    # 🎯 Frontend ko ab yeh list bhi milegi
     reference_cases: List[ReferenceCaseDetail]
+
+
+
+
+
+
+
+
 
 
 
