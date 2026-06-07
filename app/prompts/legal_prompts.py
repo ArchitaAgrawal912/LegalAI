@@ -56,18 +56,26 @@ def format_judge_prompt(approved_summary: str) -> str:
   # ... (Tere purane JUDGE_PROMPT aur KEYWORD_EXTRACTOR_PROMPT yahan upar rahenge) ...
 
 BEAUTIFY_KANOON_PROMPT = """You are an expert Legal Data Processor.
-I am providing you with messy search results from a legal database. Read them and convert them into a strict JSON array of objects.
+I am providing you with messy search results from a legal database. 
+Read them and convert them into a strict JSON array of objects.
+
+YOUR GOAL:
+1. Extract the case Title accurately.
+2. Provide a crisp, professional 2-3 line legal summary.
+3. CRITICAL: Extract ALL IPC and BNS section numbers mentioned in the text. 
+   Format them as 'IPC Section X, BNS Section Y'. If none are mentioned, explicitly state 'No specific sections mentioned'.
 
 SCHEMA FOR EACH OBJECT:
 {
-  "title": "Clean the case name (e.g., 'Jithesh vs State of Kerala')",
-  "summary": "Write a highly professional 2-3 line summary based on the provided snippet.",
-  "ipc_bns_applied": "Identify specific IPC sections, BNS sections, or Acts mentioned. If none are found in the snippet, write 'Not explicitly mentioned in the indian kanoon app'."
+  "title": "Clean the case name",
+  "summary": "Professional summary...",
+  "ipc_bns_applied": "List all identified IPC/BNS sections found in the snippet"
 }
 
-Respond ONLY with a valid JSON array. Do not include any markdown block formatting (like ```json)."""
+Respond ONLY with a valid JSON array. 
+Do not include any markdown block formatting (like ```json). 
+Do not add any conversational text. Just the raw JSON string."""
 
 def format_beautify_kanoon_prompt(raw_cases: list) -> str:
-    """Takes the list of raw Kanoon strings and combines them with the beautification prompt."""
     raw_text = "\n".join(raw_cases)
     return f"{BEAUTIFY_KANOON_PROMPT}\n\nRAW DATA TO PROCESS:\n{raw_text}"

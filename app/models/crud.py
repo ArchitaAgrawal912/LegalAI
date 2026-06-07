@@ -7,6 +7,7 @@ from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 from app.models.reference_cases import ReferenceCase
 # 🎯 Universal DB Engines import kiye
+
 from app.models.crud_utils import (
     save_and_refresh, 
     apply_updates_and_save, 
@@ -223,30 +224,19 @@ def create_case_with_summary(
 
 from app.models.crud_utils import save_and_refresh # (Yeh upar imported hona chahiye)
 
-def update_section_approval(
-    session: Session,
-    section_id: uuid.UUID,
-    is_approved: bool,
-    rejection_reason: str | None = None
-):
-    """Updates the approval status of a single generated Legal Section."""
-    try:
-        # 1. Database se section nikalo
-        section = session.get(LegalSection, section_id)
-        if not section:
-            raise ValueError("Legal Section not found")
-
-        # 2. Values update karo
-        section.is_approved = is_approved
-        section.rejection_reason = rejection_reason
-
-        # 3. 🎯 Tera Utility Engine Call
-        return save_and_refresh(session, section)
+def update_section_approval(session: Session, section_id: uuid.UUID, is_approved: bool, rejection_reason: str, has_lawyer_verified: bool):
+    section = session.get(LegalSection, section_id)
+    if not section:
+        raise Exception("Section not found")
         
-    except Exception as e:
-        session.rollback()
-        raise e
-
+    section.is_approved = is_approved
+    section.rejection_reason = rejection_reason
+    section.has_lawyer_verified = has_lawyer_verified # 👈 Flag update
+    
+    session.add(section)
+    session.commit()
+    session.refresh(section)
+    return section
 
 
 def save_ipc_bns_to_db(session: Session, case_id: uuid.UUID, lawyer_summary: str, ipc_list: list, bns_list: list):

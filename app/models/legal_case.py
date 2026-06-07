@@ -25,6 +25,10 @@ class LegalCase(BaseModel, table=True):
     llm_summary: str | None = None
     lawyer_approved_summary: str| None=None
     
+    
+    
+    
+   
     # Status: completed, inprogress, pending
     status: str = Field(default="pending") 
     

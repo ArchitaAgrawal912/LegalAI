@@ -106,6 +106,9 @@ class ReferenceOnlyResponse(BaseModel):
 
 
 
+class ReferenceFetchRequest(BaseModel):
+    case_id: uuid.UUID
+
 
 
 

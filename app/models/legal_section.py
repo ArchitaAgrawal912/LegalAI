@@ -23,6 +23,8 @@ class LegalSection(BaseModel, table=True):
     
     # True = Approved, False = Rejected, None = Pending Action
     is_approved: bool | None = Field(default=None) 
+    has_lawyer_verified: bool = Field(default=False) # Naya field for lawyer verification status
+    
     
     # Jab lawyer reject karega (is_approved=False), toh yahan reason aayega
     rejection_reason: str | None = Field(default=None)
@@ -35,3 +37,7 @@ class LegalSection(BaseModel, table=True):
     
     # Relationship linking back to the Case
     legal_case: "LegalCase" = Relationship(back_populates="sections")
+    
+    
+    #  has lawer verified , key , tyaaki state maintaine ho sake  single query  ki kisis case ka false hai toh no refence 
+    
