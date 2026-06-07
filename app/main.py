@@ -8,6 +8,13 @@ from app.routes.approve_reject import router as review_router       # Nayi file 
 from app.routes.reference_cases import router as reference_router   # Nayi file 4
 from app.routes.delete import router as delete_router               # Nayi file 5
 # 👇 Yahan galti se ek space aa gaya tha, ab hata diya hai
+
+
+
+
+
+
+
 app = FastAPI(
     title="LegalAI Backend API",
     description="Enterprise-grade Legal API",
@@ -21,6 +28,17 @@ app.include_router(analysis_router)
 app.include_router(review_router)
 app.include_router(reference_router)
 app.include_router(delete_router)
+
+
+
+
+
+
+
+
+
+
+
 
 @app.get("/", tags=["Home"])
 def home():
