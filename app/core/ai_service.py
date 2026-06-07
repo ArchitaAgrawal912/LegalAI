@@ -1,8 +1,14 @@
 # app/core/ai_service.py
 
 from google import genai
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
+import logging
 from app.config.ai_config import get_gemini_api_key, GEMINI_MODEL
+
+
+logger = logging.getLogger("api_logger")
+
+
 
 @retry(
     stop=stop_after_attempt(3),          

@@ -13,13 +13,17 @@ from app.routes.delete import router as delete_router               # Nayi file 
 
 
 
-
+from app.core.logging_middleware import LoggingMiddleware
 
 app = FastAPI(
     title="LegalAI Backend API",
     description="Enterprise-grade Legal API",
     version="1.0.0"
 )
+
+
+app.add_middleware(LoggingMiddleware)
+
 
 # 2. Sabko app (FastAPI) ke saath jod de
 # app.include_router(case_router)
