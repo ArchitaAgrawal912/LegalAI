@@ -24,6 +24,12 @@ class Case(SQLModel, table=True):
     ai_conclusion: Optional[str] = None
     reasoning: Optional[str] = None
 
+    final_summary: Optional[str] = None
+
+    final_reasoning: Optional[str] = None
+
+    report_status: Optional[str] = "pending"
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     user_id: Optional[int] = Field(
