@@ -1,13 +1,25 @@
 from sqlmodel import Session, select
 from uuid import UUID
+from typing import TYPE_CHECKING
 from app.models.case_model import Case
 from app.controllers.summary_controller import generate_case_summary
-from app.operation_db.base_controller import create, update_and_change, soft_delete
+from app.operation_db.base_operation import create, update_and_change, soft_delete
+
+
 
 # 1.>>>>>>>>>>> CREATE >>>>>>>>>>>>>
 def create_case(session: Session, data: dict) -> Case:
+    # raw description first save
     case = Case(**data)
-    return create(session, case)
+    create(session, case)
+    # LLM call
+    result = generate_case_summary(case.case_description)
+    # Summary Save 
+    return update_and_change(session, case, {
+        "title": result["title"],
+        "llm_summary": result["summary"]
+    })
+    
 
 # (**data) -> Ye dictionary ko Case object me convert kar raha hai.
 
@@ -48,39 +60,51 @@ def get_all_cases(session: Session, user_id: UUID, search: str = None, page: int
     
     return cases
 
-# 6. LLM SUMMARY GET 
-def generate_and_save_summary(session: Session, case_id: UUID) -> Case | None:
-
-    # Fetcing the case....
-    case = get_case(session, case_id)
-    if case is None:
-        return  None
-    
-    # LLM call
-    result = generate_case_summary(case.case_description)
-
-    # Summary Save 
-    return update_and_change(session, case, {
-        "title": result["title"],
-        "llm_summary": result["summary"]
-    })
-
-# 7. APPROVE SUMMARY
+# 6. APPROVE SUMMARY
 def approve_summary(session: Session, case_id: UUID) -> Case | None:
+    from app.operation_db.section_operation import generate_and_save_sections
     case = get_case(session, case_id)
     if case is None:
         return None
-    case.lawyer_approved_summary = case.llm_summary
-    return create(session, case)
+    case = update_and_change(session, case, {"lawyer_approved_summary":case.llm_summary})
 
-# 8. REJECT SUMMARY
-def reject_summary(session: Session, case_id: UUID) -> Case | None:
+    generate_and_save_sections(session, case.id)
+
+    return case
+
+# 7. REJECT/EDIT summary
+def review_summary(session: Session, case_id: UUID, summary: str) -> Case | None:
     case = get_case(session, case_id)
     if case is None:
         return None
-    case.llm_summary = None
+    case = update_and_change(session, case, {"lawyer_approved_summary": summary})
 
-    return create(session, case)
+    generate_and_save_sections(session, case.id)
+
+    return case
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # 8. REJECT SUMMARY
+# def reject_summary(session: Session, case_id: UUID) -> Case | None:
+#     case = get_case(session, case_id)
+#     if case is None:
+#         return None
+#     case.llm_summary = None
+
+#     return update_and_change(session, case, {"lawyer_approved_summary": summary})
 
 
 
@@ -93,3 +117,21 @@ def reject_summary(session: Session, case_id: UUID) -> Case | None:
 # Session = Database Conversation
 # Session bolta hai:
 #"Main database se connected hoon."
+
+
+# # 6. LLM SUMMARY GET 
+# def generate_and_save_summary(session: Session, case_id: UUID) -> Case | None:
+
+#     # Fetcing the case....
+#     case = get_case(session, case_id)
+#     if case is None:
+#         return  None
+    
+#     # LLM call
+#     result = generate_case_summary(case.case_description)
+
+#     # Summary Save 
+#     return update_and_change(session, case, {
+#         "title": result["title"],
+#         "llm_summary": result["summary"]
+#     })

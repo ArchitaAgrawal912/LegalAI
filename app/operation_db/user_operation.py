@@ -1,7 +1,7 @@
 from sqlmodel import Session, select
 from app.models.user_model import User
 from uuid import UUID
-from app.operation_db.base_controller import create, soft_delete, update_and_change
+from app.operation_db.base_operation import create, soft_delete, update_and_change
 
 def create_user(session: Session, data: dict) -> User: # actual data received from user
     user = User(**data) # unpacking dictionary

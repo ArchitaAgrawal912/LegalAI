@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.controllers.legal_controller import get_legal_response
+from app.controllers.legal_controller import generate_sections
 
 from app.serializers.legal_serializer import (
     LegalQueryRequest,
@@ -22,7 +22,7 @@ def legal_query(payload: LegalQueryRequest):
 
     try:
 
-        llm_response = get_legal_response(payload.query)
+        llm_response = generate_sections(payload.query)
 
         return LegalQueryResponse(
             ipc_sections=llm_response["ipc_sections"],

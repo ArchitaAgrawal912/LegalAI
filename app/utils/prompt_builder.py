@@ -1,27 +1,29 @@
-def build_legal_prompt(user_query: str):
+def build_section_prompt(summary: str):
 
     return f"""
     You are an Indian legal assistant.
 
     Analyze the user's legal issue carefully.
 
-    User Query:
-    {user_query}
+    Case Summary:
+    {summary}
 
     IMPORTANT:
     - Always provide BOTH IPC and BNS sections wherever applicable.
     - Never leave bns_sections empty if criminal offences are involved.
+    - Never give random/ unnessecary ipc_sections or bns_sections
 
     Return ONLY valid JSON.
 
     Format:
-
     {{
-        "ipc_sections": [],
-        "bns_sections": [],
-        "legal_concepts": [],
-        "case_references": [],
-        "next_steps": []
+        "sections": [
+            {{
+                "ipc_section": "",
+                "bns_section": "",
+                "reason": ""
+            }}
+        ]
     }}
 
     Do not return markdown.

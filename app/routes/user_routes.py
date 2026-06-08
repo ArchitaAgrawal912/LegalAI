@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.operation_db.user_controller import get_users
+from app.operation_db.user_operation import get_users
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

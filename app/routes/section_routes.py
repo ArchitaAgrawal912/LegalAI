@@ -3,27 +3,31 @@ from sqlmodel import Session
 from uuid import UUID
 
 from app.core.database import get_db
-from app.operation_db.section_controller import (
+from app.operation_db.section_operation import (
     create_section,
     get_section,
     get_sections_by_case,
     update_section,
     delete_section,
-    verify_section
+    verify_section,
+    verify_all_sections
 )
+from app.operation_db.precedent_operation import generate_and_save_precedents
+
 
 from app.serializers.section_serializer import(
     LegalSectionCreate,
     LegalSectionUpdate,
     LegalSectionResponse
 )
+from app.serializers.common_response import APIResponse
 
 router = APIRouter(prefix="/sections", tags=["Legal Sections"])
 
 
 # 1. CREATE SECTION
 @router.post("/", response_model=LegalSectionResponse)
-def create_section_route(payload: LegalSectionCreate, session: Session = Depends(get_db)):
+def generate_section_route(payload: LegalSectionCreate, session: Session = Depends(get_db)):
     section = create_section(session, payload.model_dump())
     return section
 
@@ -52,14 +56,18 @@ def update_section_route(section_id: UUID, payload: LegalSectionUpdate, session:
     return section
 
 # 5. VERIFY BY LAWYER
-@router.patch("/{section_id}/verify", response_model=LegalSectionResponse)
+@router.patch("/{section_id}/verify", response_model=APIResponse)
 def verify_section_route(section_id: UUID, session: Session = Depends(get_db)):
     section = verify_section(session, section_id)
 
     if section is None:
         raise HTTPException(status_code=404, detail="Section not found")
     
-    return section
+    return APIResponse(
+        success=True,
+        message="Section verified successfully",
+        data=section
+    )
 
 # 6. DELETE
 @router.delete("/{section_id}", response_model=LegalSectionResponse)
@@ -70,3 +78,22 @@ def delete_section_route(section_id: UUID, session: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Section not found")
 
     return section
+
+# 7. VERIFY ALL SECTIONS
+@router.patch("/{case_id}/verify-all", response_model=APIResponse)
+def verify_all_sections_route(case_id: UUID, session: Session = Depends(get_db)):
+    sections = verify_all_sections(session, case_id)
+
+    if sections is None:
+        raise HTTPException(status_code=404, detail="Sections not found")
+    
+    try:
+        generate_and_save_precedents(session, case_id)
+    except Exception as e:
+        print(e)
+
+    return APIResponse(
+    success=True,
+    message="All sections verified",
+    data=sections
+)

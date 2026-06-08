@@ -1,50 +1,42 @@
-import json # Python's built-in library for JSON handling
+import json
 
-from groq import Groq  # Groq's official Python SDK — lets you talk to their API
+from app.serializers.llm_serializer import SectionResponse
 
-from app.core.config import GROQ_API_KEY
-from app.services.kanoon_service import get_case_references
-from app.utils.prompt_builder import build_legal_prompt
+from app.utils.llm_helper import call_llm
+from app.utils.prompt_builder import build_section_prompt
 
 
-client = Groq(api_key=GROQ_API_KEY)
 
-# GROQ call
 
-def get_legal_response(user_query: str):
+def generate_sections(summary: str):
 
-    prompt = build_legal_prompt(user_query)
+    prompt = build_section_prompt(summary)
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+   
 
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful Indian legal assistant."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
+    parsed_response = call_llm(
+         model="llama-3.1-8b-instant",
+
+        system_prompt=
+        "You are an Indian legal assistant.",
+
+        user_prompt=prompt
     )
+    
+    validated = SectionResponse.model_validate(parsed_response)
 
-    final_answer = response.choices[0].message.content.strip()
+    return validated.model_dump()
 
-    final_answer = final_answer.replace("```json", "")
-    final_answer = final_answer.replace("```", "")
-
-    parsed_response = json.loads(final_answer)
-
-    # CALL 2 : KANOON
-    case_references = get_case_references(user_query)
     
 
-    # Combining both results
-    parsed_response["case_references"] = case_references
+    # CALL 2 : KANOON
+    # case_references = get_case_references(user_query)
+    
 
-    return parsed_response
+    # # Combining both results
+    # parsed_response["case_references"] = case_references
+
+    # return parsed_response
 
 # STORY - MENTAL MODLE >>>
 

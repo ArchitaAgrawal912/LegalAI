@@ -15,7 +15,7 @@ class LegalQueryRequest(BaseModel):
 class LegalQueryResponse(BaseModel):
     ipc_sections: List[str]
     bns_sections: List[str]
-    legal_concepts: List[str]
-    case_references: List[CaseReference]  # UPDATED: was List[str]
-    next_steps: List[str]
+    reason: List[str]
+    # case_references: List[CaseReference]  # UPDATED: was List[str]
+    # next_steps: List[str]
 

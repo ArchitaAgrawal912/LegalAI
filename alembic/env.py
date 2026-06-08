@@ -26,6 +26,7 @@ from app.models.base_model import BaseModel
 from app.models.user_model import User
 from app.models.case_model import Case, CaseStatus
 from app.models.legal_sections import LegalSection, SectionSource
+from app.models.precedentCase_model import PrecedentCase
 
 target_metadata = SQLModel.metadata
 
