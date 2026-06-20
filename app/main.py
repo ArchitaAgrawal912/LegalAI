@@ -1,58 +1,58 @@
-import os
-from dotenv import load_dotenv
-
-# FORCE LOAD THE ENVIRONMENT VARIABLES BEFORE ANYTHING ELSE
-load_dotenv()
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import settings
-from app.api.routes import legal
-from app.api.routes import cases, auth
-from app.db.database import init_db
-import contextlib
 import logging
+import contextlib
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+
+# Local module imports
+from app.core.config import settings
+from app.db.database import init_db, engine, get_session
 from app.core.logging_config import setup_logging
 from app.middleware.logging import APILoggingMiddleware
 
-setup_logging()
+# Routers
+from app.api.routes import legal, cases, auth
 
-# This turns on Python’s internal messaging system. Instead of using print(), professional apps use logger.
-logging.basicConfig(level=logging.INFO)
+# Initialize custom logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
-
-# Its main job is to ensure that your database tables are actually created before the server starts accepting any traffic from users.
-# 2. Define the lifespan manager outside the factory
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+    Production lifecycle manager. 
+    Handles startup and shutdown events securely.
+    """
+    logger.info(f"⏳ Starting {settings.PROJECT_NAME} ({settings.API_VERSION})...")
+    
     logger.info("⏳ Initializing PostgreSQL Database...")
-    # await init_db()  #commented because alembic is handling thr creation of db
-    # logger.info("✅ Database tables created successfully!")
-    yield
-    logger.info("🛑 Server shutting down...")
-
-
-# This code guarantees that PostgreSQL is fully connected and
-# your tables are built the split-second before your API goes live to the internet.
-
+    # await init_db()  # commented because alembic is handling the creation of db
+    logger.info("✅ Database connection pool ready!")
+    
+    yield  # Application is live and serving requests here
+    
+    logger.info("🛑 Server shutting down. Cleaning up database connections...")
+    if engine:
+        await engine.dispose()
+        logger.info("✅ Database connections safely closed.")
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Legal AI API",
-        version="v1.0.0",
+        title=settings.PROJECT_NAME,
+        version=settings.API_VERSION,
         description="Production-grade API for extracting IPC and BNS sections from legal case facts.",
-        lifespan=lifespan,  # <-- Attach the lifespan manager to the app
+        lifespan=lifespan, 
     )
 
     # Standard security middleware for frontend communication
-
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
             "http://localhost:5173",
             "http://127.0.0.1:5173",
             "http://localhost:3000",
-        ],  # Restrict this to your actual frontend domain in production
+        ],  
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -60,14 +60,28 @@ def create_app() -> FastAPI:
     
     app.add_middleware(APILoggingMiddleware)
 
-    # Register the legal routing module
+    # Register the routing modules
     app.include_router(legal.router, prefix="/api/v1")
     app.include_router(cases.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1/auth")
 
+    # Upgraded Health Check that pings the RDS database
     @app.get("/health", tags=["System"])
-    async def health_check():
-        return {"status": "operational", "service": "Legal AI API"}
+    async def health_check(db: AsyncSession = Depends(get_session)):
+        try:
+            # Ping the database to ensure connection is active
+            await db.execute(text("SELECT 1"))
+            return {
+                "status": "operational", 
+                "service": settings.PROJECT_NAME,
+                "database": "connected to RDS AWS"
+            }
+        except Exception as e:
+            logger.error(f"Health check failed to connect to DB: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Service unhealthy: Database connection failed. Error: {str(e)}"
+            )
 
     return app
 
