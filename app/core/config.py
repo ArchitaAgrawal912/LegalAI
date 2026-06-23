@@ -1,19 +1,3 @@
-# from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-# class Settings(BaseSettings):
-#     PROJECT_NAME: str = "FastAPI Gemini App"
-#     API_VERSION: str = "v1"
-#     GROQ_API_KEY: str
-#     KANOON_API_TOKEN: str
-#     DATABASE_URL: str
-
-#     # Allows loading from the local .env file
-#     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-
-# settings = Settings()
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import json
@@ -25,16 +9,13 @@ class Settings(BaseSettings):
     Strict environment configuration. 
     App will crash on boot if required keys are missing, preventing runtime errors.
     """
-    # Project Metadata
     PROJECT_NAME: str = "LegalAI API"
     API_VERSION: str = "v1.0.0"
 
-    # External API Keys (Required - No defaults allowed)
-    GROQ_API_KEY: str
-    KANOON_API_TOKEN: str
-
-    # Database
-    DATABASE_URL: str = ""
+    # Set defaults to None so Pydantic doesn't crash before AWS is checked
+    GROQ_API_KEY: str | None = None
+    KANOON_API_TOKEN: str | None = None
+    DATABASE_URL: str | None = None
     
     # AWS Configurations
     AWS_SECRET_NAME: str | None = None
@@ -54,12 +35,10 @@ def fetch_aws_secret(secret_name: str, region_name: str) -> dict:
     try:
         response = client.get_secret_value(SecretId=secret_name)
         secret_string = response['SecretString']
-        
         try:
             return json.loads(secret_string)
         except json.JSONDecodeError:
             return {"DATABASE_URL": secret_string}
-            
     except ClientError as e:
         raise RuntimeError(f"Failed to fetch secret from AWS: {str(e)}")
 
@@ -79,11 +58,15 @@ def get_settings() -> Settings:
         if "KANOON_API_TOKEN" in aws_secrets:
             settings.KANOON_API_TOKEN = aws_secrets["KANOON_API_TOKEN"]
         
-    # Final safety check
-    if not settings.DATABASE_URL:
-        raise ValueError("CRITICAL: DATABASE_URL is missing. Must be in .env or AWS.")
+    # Final safety checks (Crashing here if missing)
+    missing_keys = []
+    if not settings.DATABASE_URL: missing_keys.append("DATABASE_URL")
+    if not settings.GROQ_API_KEY: missing_keys.append("GROQ_API_KEY")
+    if not settings.KANOON_API_TOKEN: missing_keys.append("KANOON_API_TOKEN")
+    
+    if missing_keys:
+        raise ValueError(f"CRITICAL: Missing required environment variables: {', '.join(missing_keys)}")
         
     return settings
 
-# Global settings instance
 settings = get_settings()
