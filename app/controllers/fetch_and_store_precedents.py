@@ -13,6 +13,9 @@ from app.models.legal_section import LegalSection
 from app.models.precedent import PrecedentCase
 from app.services.kanoon_service import KanoonService
 
+# 🎯 STEP 1: Apne Similarity Service function ko import karo
+from app.services.similarity_service import compute_similarity_percentage
+
 
 async def fetch_and_store_precedents_controller(
     case_id: UUID, db: AsyncSession, kanoon_service: KanoonService
@@ -30,7 +33,7 @@ async def fetch_and_store_precedents_controller(
         approved_db_charges = result.scalars().all()
 
         # ==========================================
-        # 🚨 NEW: THE GUARDRAIL
+        # 🚨 THE GUARDRAIL
         # ==========================================
         if not approved_db_charges:
             raise HTTPException(
@@ -63,15 +66,24 @@ async def fetch_and_store_precedents_controller(
 
             # 3. Save each incoming record item into a separate database row
             for item in kanoon_results:
-                # Use DOT NOTATION here instead of brackets!
                 kanoon_url = f"https://indiankanoon.org/doc/{item.doc_id}/"
+
+                # 🧠 STEP 2: DYNAMIC AI SCORING ENGINE
+                # Agar Kanoon API response mein headline/snippet aa raha hai toh use pass karo, 
+                # nahi toh fallback ke liye item.title use karlo.
+                precedent_text_chunk = getattr(item, "snippet", "") or item.title
+                
+                match_score = compute_similarity_percentage(
+                    current_case_text=db_case.raw_description,
+                    precedent_case_text=precedent_text_chunk
+                )
 
                 new_precedent = PrecedentCase(
                     case_id=db_case.id,
-                    title=item.title,  # <--- Changed from item["title"]
+                    title=item.title,
                     doc_id=item.doc_id,
                     doc_url=kanoon_url,
-                    ai_score=None,  # Ready for custom re-ranking models
+                    ai_score=match_score,  # 🔥 Update: Ab None ki jagah real matching percentage save hoga!
                 )
                 db.add(new_precedent)
                 precedents.append(new_precedent)
@@ -90,10 +102,11 @@ async def fetch_and_store_precedents_controller(
                 "explanation": charge.reason,
                 "is_approved": charge.is_approved,
             }
+            # Yahan hum saare approved charges mapping list comprehension mein iterate kar rahe hain
             for charge in approved_db_charges
         ]
 
-        # NEW: Clean the precedent database objects into pure dictionaries
+        # STEP 3: Clean the precedent database objects into pure dictionaries
         clean_precedents = [
             {
                 "id": p.id,
@@ -104,6 +117,9 @@ async def fetch_and_store_precedents_controller(
             }
             for p in precedents
         ]
+
+        # 🎯 STEP 4: RE-RANKING ENGINE (Highest score sabse upar dikhega)
+        clean_precedents.sort(key=lambda x: x["ai_score"], reverse=True)
 
         return CaseResponse(
             case_summary=db_case.lawyer_approved_summary,
