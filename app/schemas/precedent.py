@@ -17,3 +17,15 @@ class PrecedentRead(BaseModel):
     doc_id: str
     doc_url: str  # <--- Now the frontend can just slap this into an <a href> tag!
     ai_score: float | None = None
+
+
+
+class PrecedentScoreResult(BaseModel):
+    score: float = Field(
+        ..., 
+        description="A score from 0.0 to 1.0 indicating how relevant the precedent is to the current case."
+    )
+    reasoning: str = Field(
+        ..., 
+        description="One brief sentence explaining why this score was given."
+    )
