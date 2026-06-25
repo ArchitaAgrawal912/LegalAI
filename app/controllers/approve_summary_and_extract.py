@@ -10,7 +10,7 @@ from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 from app.services.legal_service import LegalAnalysisService
 
-# Set up production logger
+#  up production logger
 logger = logging.getLogger(__name__)
 
 async def approve_summary_and_extract_controller(

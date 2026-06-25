@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Define the AWS Secret Name (Change this to match your AWS console name)
 AWS_SECRET_NAME = os.getenv("AWS_SECRET_NAME", "legalai/backend/env")
-AWS_REGION = os.getenv("AWS_REGION_NAME", "us-east-1")
+AWS_REGION = os.getenv("AWS_REGION_NAME", "ap-southeast-2")
 
 def get_aws_secrets() -> dict:
     """
