@@ -48,11 +48,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-        ],  # Restrict this to your actual frontend domain in production
+        allow_origins=["*"],  # Ye sabhi ko allow kar dega. (Production mein aap explicitly "http://3.27.114.106" bhi daal sakte ho)
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
