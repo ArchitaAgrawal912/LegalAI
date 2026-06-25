@@ -48,7 +48,10 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Ye sabhi ko allow kar dega. (Production mein aap explicitly "http://3.27.114.106" bhi daal sakte ho)
+        allow_origins=[
+            "http://3.27.114.106",  # EC2 Frontend ki IP
+            "http://localhost:5173", # Local dev ke liye
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
