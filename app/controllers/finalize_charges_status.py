@@ -9,7 +9,6 @@ from app.schemas.section import ChargesActionRequest
 from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 
-
 async def finalize_charges_status_controller(
     case_id: UUID, request: ChargesActionRequest, db: AsyncSession
 ):
@@ -18,55 +17,45 @@ async def finalize_charges_status_controller(
         if not db_case:
             raise case_not_found_exc()
 
-        # 1. Fetch ALL existing draft charges for this case
         query = select(LegalSection).where(LegalSection.case_id == case_id)
         result = await db.execute(query)
         existing_charges = result.scalars().all()
 
-        # Optimize lookups for tracking lists
         approved_ids = set(request.approved_id or [])
         rejected_dict = {item.id: item.reason for item in (request.rejected_data or [])}
 
         final_db_charges = []
 
-        # 2. Synchronize lawyer's explicit actions with the database state
         for charge in existing_charges:
             if charge.id in approved_ids:
-                # SCENARIO A: Lawyer Ticked (Approved)
                 charge.is_approved = True
                 charge.has_lawyer_verified = True
+                # Agar galti se reject ho gaya tha toh tag hatao
+                if charge.reason and charge.reason.startswith("REJECT_REASON:"):
+                    charge.reason = charge.reason.replace("REJECT_REASON:", "").strip()
 
             elif charge.id in rejected_dict:
-                # SCENARIO B: Lawyer Crossed (Rejected & Reason Provided)
                 charge.is_approved = False
                 charge.has_lawyer_verified = True
-                charge.reason = rejected_dict[charge.id]
-
-            else:
-                # SCENARIO C: Cleanup (Orphan handling)
-                if charge.source == "LLM":
-                    charge.is_approved = False
-                    charge.has_lawyer_verified = True
-                elif charge.source == "LAWYER_MANUAL":
-                    # Keep manual additions safely intact
-                    pass
+                # SMART FIX: Save Rejection Reason in the existing column with a tag!
+                charge.reason = f"REJECT_REASON:{rejected_dict[charge.id]}"
 
             db.add(charge)
             final_db_charges.append(charge)
 
-        # Update transitional status before Kanoon handling
         db_case.status = "pending_precedents"
         await db.commit()
 
-        # Return the verified list layout back to the UI
+        # UI ko response bhejne ke liye list banate hain
         clean_charges = [
             {
                 "id": charge.id,
                 "ipc_section": charge.ipc_section,
                 "bns_equivalent": charge.bns_section,
                 "offense": "Refer to IPC",
-                "explanation": charge.reason,
+                "explanation": charge.reason.replace("REJECT_REASON:", "") if charge.reason else "",
                 "is_approved": charge.is_approved,
+                "rejection_reason": charge.reason.replace("REJECT_REASON:", "") if charge.reason and charge.reason.startswith("REJECT_REASON:") else None
             }
             for charge in final_db_charges
         ]

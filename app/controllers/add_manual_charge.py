@@ -16,14 +16,14 @@ async def add_manual_charge_controller(
         if not db_case:
             raise case_not_found_exc()
 
-        # Create the brand new manual charge
+        # Create the brand new manual charge (Without confidence field)
         new_charge = LegalSection(
             case_id=case_id,
             ipc_section=request.ipc_section,
             bns_section=request.bns_section,
             reason=request.reason,
             source="LAWYER_MANUAL",
-            is_approved=True,  # It's manual, so it starts approved
+            is_approved=True,
             has_lawyer_verified=True,
         )
 
@@ -39,6 +39,9 @@ async def add_manual_charge_controller(
                 "bns_equivalent": new_charge.bns_section,
                 "explanation": new_charge.reason,
                 "is_approved": new_charge.is_approved,
+                "confidence": 100, # Dynamically returning 100 for frontend
+                "source": new_charge.source,
+                "created_at": new_charge.created_at.isoformat() if hasattr(new_charge, "created_at") else None,
             },
         }
     except Exception as e:

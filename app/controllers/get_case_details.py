@@ -9,28 +9,20 @@ from app.errors import case_not_found_exc, server_error_exc
 from app.models.legal_section import LegalSection
 from app.models.precedent import PrecedentCase
 
-
 async def get_case_details_controller(case_id: UUID, db: AsyncSession):
     try:
-        # 1. Fetch the main case
         db_case = await crud.legal_case.get(db, id=case_id)
         if not db_case:
             raise case_not_found_exc()
 
-        # 2. Fetch all associated charges (sections)
-        query_sec = select(LegalSection).where(
-       LegalSection.case_id == case_id,
-       LegalSection.is_approved == True
-)
+        query_sec = select(LegalSection).where(LegalSection.case_id == case_id)
         sections_result = await db.execute(query_sec)
         sections = sections_result.scalars().all()
 
-        # 3. Fetch all associated precedent cases
         query_prec = select(PrecedentCase).where(PrecedentCase.case_id == case_id)
         prec_result = await db.execute(query_prec)
         precedents = prec_result.scalars().all()
 
-        # 4. Stitch them all together into a dictionary that perfectly matches CaseDetailRead
         return {
             "id": db_case.id,
             "title": db_case.title,
@@ -43,8 +35,13 @@ async def get_case_details_controller(case_id: UUID, db: AsyncSession):
                     "id": sec.id,
                     "ipc_section": sec.ipc_section,
                     "bns_equivalent": sec.bns_section,
-                    "explanation": sec.reason,
+                    # Agar REJECT tag hai toh wahi rejection reason hai, warna normal explanation
+                    "explanation": sec.reason.replace("REJECT_REASON:", "") if sec.reason else "",
                     "is_approved": sec.is_approved,
+                    "rejection_reason": sec.reason.replace("REJECT_REASON:", "") if sec.reason and sec.reason.startswith("REJECT_REASON:") else None,
+                    "confidence": 100 if sec.source == "LAWYER_MANUAL" else 85,
+                    "source": sec.source,
+                    "created_at": sec.created_at.isoformat() if hasattr(sec, "created_at") and sec.created_at else None,
                 }
                 for sec in sections
             ],
