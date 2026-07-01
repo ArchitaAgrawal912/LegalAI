@@ -18,8 +18,7 @@ async def create_draft_case_controller(
         if not user:
             raise user_not_found_exc()
 
-        # 2. Call Groq ONLY for the summary and title
-        print("🚀 Calling Groq for Draft Summary...")
+       
         draft_result = await legal_service.draft_summary(
             case_description=request.case_description
         )

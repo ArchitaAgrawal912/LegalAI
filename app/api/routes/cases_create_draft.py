@@ -20,4 +20,9 @@ async def create_draft_case(
     db: AsyncSession = Depends(get_db_session),
     legal_service: LegalAnalysisService = Depends(get_legal_service),
 ):
-    return await create_draft_case_controller(request, db, legal_service)
+    result =  return await create_draft_case_controller(request, db, legal_service)
+     if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to create draft case.",
+        )

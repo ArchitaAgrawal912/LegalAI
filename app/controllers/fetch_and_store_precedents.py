@@ -26,7 +26,7 @@ async def fetch_and_store_precedents_controller(
         # ==========================================
         db_case = await crud.legal_case.get(db, id=case_id)
 
-        if not db_case:
+        if not db_case:  
             raise case_not_found_exc()
 
         # ==========================================

@@ -34,9 +34,9 @@ class LegalAnalysisService:
             response_format={"type": "json_object"},
         )
 
-        result_dict = json.loads(response.choices[0].message.content)
+      if( response.choices[0]):   result_dict = json.loads(response.choices[0].message.content)
         return DraftResponse(**result_dict)
-
+      else raise ValueError("No response from Groq API for draft summary.")
     @with_api_retry
     async def extract_charges(self, approved_summary: str) -> list[LegalSection]:
         """PHASE 2: Takes the HUMAN-VERIFIED summary and extracts penal charges."""

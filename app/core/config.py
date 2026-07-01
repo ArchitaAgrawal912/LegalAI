@@ -37,18 +37,32 @@ aws_secrets = get_aws_secrets()
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI Gemini App"
     API_VERSION: str = "v1"
-    
-    # These fields will read from AWS first, then fallback to .env or system env vars
-    GROQ_API_KEY: str = aws_secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
-    KANOON_API_TOKEN: str = aws_secrets.get("KANOON_API_TOKEN", os.getenv("KANOON_API_TOKEN", ""))
-    DATABASE_URL: str = aws_secrets.get("DATABASE_URL", os.getenv("DATABASE_URL", ""))
-    
-    # If your code needs a generic GEMINI_API_KEY as well:
-    GEMINI_API_KEY: str = aws_secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
-    # Allows loading from the local .env file
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    GROQ_API_KEY: str = aws_secrets.get("GROQ_API_KEY")
+    KANOON_API_TOKEN: str = aws_secrets.get("KANOON_API_TOKEN")
+    DATABASE_URL: str = aws_secrets.get("DATABASE_URL")
+    GEMINI_API_KEY: str = aws_secrets.get("GEMINI_API_KEY")
+
+    # No .env fallback
+    model_config = SettingsConfigDict(extra="ignore")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        required_secrets = {
+            "GROQ_API_KEY": self.GROQ_API_KEY,
+            "KANOON_API_TOKEN": self.KANOON_API_TOKEN,
+            "DATABASE_URL": self.DATABASE_URL,
+            "GEMINI_API_KEY": self.GEMINI_API_KEY,
+        }
+
+        missing = [key for key, value in required_secrets.items() if not value]
+
+        if missing:
+            raise ValueError(
+                f"Missing required AWS Secrets: {', '.join(missing)}"
+            )
 
 
-# 3. Instantiate the settings object globally
+# Global settings instance
 settings = Settings()

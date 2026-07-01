@@ -31,24 +31,23 @@ async def get_case_details_controller(case_id: UUID, db: AsyncSession):
         precedents = prec_result.scalars().all()
 
         # 4. Stitch them all together into a dictionary that perfectly matches CaseDetailRead
-        return {
-            "id": db_case.id,
-            "title": db_case.title,
-            "raw_description": db_case.raw_description,
-            "llm_summary": db_case.llm_summary,
-            "lawyer_approved_summary": db_case.lawyer_approved_summary,
-            "status": db_case.status,
-            "applicable_charges": [
-                {
-                    "id": sec.id,
-                    "ipc_section": sec.ipc_section,
-                    "bns_equivalent": sec.bns_section,
-                    "explanation": sec.reason,
-                    "is_approved": sec.is_approved,
-                }
-                for sec in sections
-            ],
-            "precedent_cases": [
+        Applicable_charges=ChargeRead(
+                id: sec.id,
+                ipc_section: sec.ipc_section,   
+                bns_equivalent: sec.bns_section,
+                explanation: sec.reason,
+                is_approved: sec.is_approved
+                
+        )
+        case_details= CaseDetailRead(
+            id=db_case.id,
+            title=db_case.title,
+            raw_description=db_case.raw_description,
+            llm_summary=db_case.llm_summary,
+            lawyer_approved_summary=db_case.lawyer_approved_summary,
+            status=db_case.status,
+            applicable_charges=Applicable_charges,
+            precedent_cases=    [
                 {
                     "id": p.id,
                     "title": p.title,
@@ -58,7 +57,7 @@ async def get_case_details_controller(case_id: UUID, db: AsyncSession):
                 }
                 for p in precedents
             ],
-        }
+        )
     except HTTPException:
         raise
     except Exception as e:

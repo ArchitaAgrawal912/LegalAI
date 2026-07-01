@@ -36,7 +36,6 @@ async def create_user(request: UserCreate, db: AsyncSession = Depends(get_db_ses
         name=request.name,
         email=request.email,
         phone_no=request.phone_no,
-        # TODO: We need to hash this password later!
         password_hash=request.password,
         is_active=True,
     )

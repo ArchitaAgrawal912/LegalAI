@@ -25,10 +25,11 @@ async def regenerate_summary_controller(
         )
 
         # 3. Overwrite the existing data on the same row
-        db_case.raw_description = new_description
+        db_case.raw_description = case_description
         db_case.title = draft_result.title
         db_case.llm_summary = draft_result.summary
         db_case.status = "pending_review" # Ensure status resets properly
+
 
         await db.commit()
         await db.refresh(db_case)
