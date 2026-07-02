@@ -106,3 +106,31 @@ class ChargeResponse(BaseModel):
 class ExtractChargesResponse(BaseModel):
     message: str
     draft_charges: list[ChargeResponse]
+    
+    
+    
+    
+class ManualChargeResponse(BaseModel):
+    id: UUID
+    ipc_section: str
+    bns_equivalent: str
+    explanation: str
+    is_approved: bool
+
+
+class AddManualChargeResponse(BaseModel):
+    message: str
+    charge: ManualChargeResponse
+    
+class FinalizedChargeResponse(BaseModel):
+    id: UUID
+    ipc_section: str
+    bns_equivalent: str
+    offense: str
+    explanation: str
+    is_approved: bool
+
+
+class FinalizeChargesResponse(BaseModel):
+    message: str
+    applicable_charges: list[FinalizedChargeResponse]    

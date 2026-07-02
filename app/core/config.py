@@ -66,3 +66,30 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+
+
+
+# super() is used to initialise parent class Basesettings without  super parent will not be initialsed
+# kwargs stand for keyword argument and it convert argument to dictionary
+# Then why use BaseSettings?
+
+# It gives you additional features like:
+
+# Type validation
+# DATABASE_URL: str
+# PORT: int
+# DEBUG: bool
+
+# If AWS returns
+
+# PORT = "8000"
+
+# BaseSettings converts it automatically to
+
+# 8000   # int
+
+# self → Current object (the instance on which the method is called).
+# __init__ → Constructor; automatically runs when an object is created.
+# **kwargs → Collects all keyword arguments into a dictionary.
+# super().__init__() → Calls the parent class's constructor so it can perform its initialization before your subclass continues.

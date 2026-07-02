@@ -45,6 +45,8 @@ async def approve_summary_and_extract_controller(
                     reason=charge.explanation,
                     source="LLM",
                 )
+                
+                
                 db.add(db_section)
                 saved_db_charges.append(db_section) # <-- CHANGE 1: Capture the DB objects
 
@@ -66,3 +68,27 @@ async def approve_summary_and_extract_controller(
         await db.rollback()
         logger.error("CRITICAL ERROR IN PHASE 2", exc_info=True, extra={"case_id": str(case_id)})
         raise server_error_exc(e)
+    
+    
+    
+#     db.add(db_section)
+
+# SQLAlchemy internally dekhta hai
+
+# Ye object kis class ka hai?
+
+# ↓
+
+# LegalSection
+
+# ↓
+
+# LegalSection kis table se mapped hai?
+
+# ↓
+
+# LegalSection
+
+# To wo bolta hai
+
+# "Accha, is object ko LegalSection table me insert karna hai."

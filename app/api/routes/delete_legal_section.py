@@ -12,15 +12,17 @@ router = APIRouter()
 
 
 @router.delete(
-    "/legal-sections/{section_id}",
+    "/cases/{case_id}/sections/{section_id}",
     status_code=status.HTTP_200_OK,
-    summary="Soft delete a legal section",
+    summary="Soft delete a legal section belonging to a case",
 )
 async def delete_legal_section(
+    case_id: UUID,
     section_id: UUID,
     db: AsyncSession = Depends(get_db_session),
 ):
     return await delete_legal_section_controller(
-        section_id,
-        db,
+        case_id=case_id,
+        section_id=section_id,
+        db=db,
     )

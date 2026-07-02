@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_db_session
 from app.schemas.section import ChargesActionRequest
 from app.controllers import finalize_charges_status_controller
-
+from app.schemas.section import FinalizeChargesResponse
 router = APIRouter()
 
 
@@ -13,6 +13,7 @@ router = APIRouter()
     "/{case_id}/finalize-charges",
     status_code=status.HTTP_200_OK,
     summary="Phase 3A: Save lawyer-approved and rejected charges state to database",
+    response_model=FinalizeChargesResponse,
 )
 async def finalize_charges_status(
     case_id: UUID,

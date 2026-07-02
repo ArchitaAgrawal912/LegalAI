@@ -2,22 +2,34 @@ import traceback
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
-from app.errors import server_error_exc
+from app import crud
+from app.errors import case_not_found_exc, server_error_exc
 from app.models.legal_section import LegalSection
 
 
 async def delete_legal_section_controller(
+    case_id: UUID,
     section_id: UUID,
     db: AsyncSession,
 ):
     try:
-        # Fetch section which is not already deleted
-        query = select(LegalSection).where(
-            LegalSection.id == section_id,
-            LegalSection.is_deleted == False,
+        # 1. Verify case exists
+        db_case = await crud.legal_case.get(db, id=case_id)
+
+        if not db_case:
+            raise case_not_found_exc()
+
+        # 2. Find the section belonging to this case
+        query = (
+            select(LegalSection)
+            .where(
+                LegalSection.case_id == case_id,
+                LegalSection.id == section_id,
+                LegalSection.is_deleted == False,
+            )
         )
 
         result = await db.execute(query)
@@ -26,19 +38,18 @@ async def delete_legal_section_controller(
         if not db_section:
             raise HTTPException(
                 status_code=404,
-                detail="Legal section not found",
+                detail="Legal section not found for this case.",
             )
 
-        # Soft delete
+        # 3. Soft delete
         db_section.is_deleted = True
 
-        # Optional: if you maintain deleted_at
-        # db_section.deleted_at = get_utc_now()
+      
 
         await db.commit()
 
         return {
-            "message": "Legal section deleted successfully"
+            "message": "Legal section deleted successfully."
         }
 
     except HTTPException:
@@ -51,3 +62,6 @@ async def delete_legal_section_controller(
         traceback.print_exc()
 
         raise server_error_exc(e)
+    
+    
+    # app/controllers/delete_legal_section.py we used this , bcs yha query ke baad hume ek hi row milegi ya 0 milegi agar section id to be deleted is not in tabele
