@@ -82,14 +82,96 @@ class KanoonService:
             return []
 
 
-# 1. Prepares for the Trip (Setup): It defines the destination URL and formats your secret API token into a strict "VIP pass" header so the Kanoon server will accept the request.
+# strip remove space
+# max_results decide karta hai maximum kitne precedents return karne hain
+#  ye  self, search_query: str, max_results: int = 3 yha search quer
+#  kuch aur nhi balki contoller se bheje hue section ki list hai 
 
-# 2. Fills Out the Form (The Payload): It takes the legal search term, cleans it up, and packs it into a digital form. It uses a POST request (like a sealed FedEx box) to keep the search secure from server logs and bypass URL size limits.
 
-# 3. Makes the Call (Execution): It uses the httpx library to securely send that form across the internet and waits for Kanoon to reply, doing so asynchronously so the rest of your app doesn't freeze.
+#  # Format the token exactly how Kanoon expects it
+#         api_key = settings.KANOON_API_TOKEN.replace('"', "").replace("'", "").strip()
+#         auth_header = (
+#             f"Token {api_key}" if not api_key.startswith("Token ") else api_key
+#         )
 
-# 4. Cleans the Mess (Data Parsing): Kanoon sends back raw, messy data filled with HTML formatting tags. Your code surgically extracts just the titles, snippets, and IDs, scrubbing the text perfectly clean.
+#         # You are telling Kanoon, "When you reply, please only speak to me in JSON format
+#         self.headers = {"Authorization": auth_header, "Accept": "application/json"}
 
-# 5. Packages the Results (Return): It takes that clean data, shapes it perfectly into your ReferenceCase blueprint, and hands the neat package back to the rest of your app.
+#  yha upar we write auth header kyuki indian kanoop api chchti ki api key ke aage token likha ho 
+#   and  toh hu,ne usme likha and then we sent
 
-# 6. Employs a Safety Net (Error Handling): The entire mission is wrapped in a try/except block. If the internet drops or Kanoon's API crashes, your code catches the error, logs it silently, and returns an empty list so your main server stays alive.
+# self.headers = {
+#     "Authorization": auth_header,
+#     "Accept": "application/json"
+# }
+
+# Ye HTTP headers hain.
+# Har HTTP request ke 3 parts hote hain.
+
+# URL
+
+# Headers
+
+# Body
+
+
+#  data_payload = {"formInput": clean_query, "pagenum": 0} ye  request body hai
+
+#  indian kanoon api ka server accept this same exact forminput and pagenum
+#  ans yha pagenum ko 0 we set as we want ki search ka  1th page ka result mile
+
+# async with httpx.AsyncClient(timeout=10.0) as client:
+
+# Ye HTTP client create kar raha.
+
+# Jaise database ke liye session hota hai
+
+# HTTP ke liye client.
+
+# Ye internet pe request bhejta hai.
+# Why with?
+
+# Taaki kaam khatam hone ke baad
+
+# Automatically close.
+
+# Suppose server kabhi response hi nahi de.
+
+# Without timeout
+
+# Program forever wait karega.
+
+# With timeout
+
+
+# json.loads() ya response.json() ke baad ye Python dictionary ban jata hai
+# docs = data.get("docs", [])
+
+# Iska matlab hai:
+
+# Dictionary me "docs" naam ki key ki value nikal do.
+
+# by default indian kanoon ka server aisa json bhejegea
+# Indian Kanoon ka server response bhejta hai.
+
+
+
+# {
+#     "docs": [
+#         {
+#             "title": "State vs Rajesh",
+#             "headline": "The accused committed theft...",
+#             "tid": 12345
+#         },
+#         {
+#             "title": "ABC vs XYZ",
+#             "headline": "Cheating case...",
+#             "tid": 67890
+#         }
+#     ],
+#     "found": 2
+# } and hume chye 
+# title
+# docid
+# snippet
+# url so we paas through serializer

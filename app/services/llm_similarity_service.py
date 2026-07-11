@@ -54,3 +54,36 @@ async def llm_similarity_score(
     except Exception as e:
         print(f"❌ LLM Similarity Error: {e}")
         return 50
+    
+    
+#        match = re.search(r"\d+", answer)
+#        Ye Python ki regular expression (regex) function hai.
+#        Iska matlab:
+
+# \d → koi bhi digit (0-9)
+# + → ek ya usse zyada digits
+
+# Matlab
+
+# "Continuous digits dhoondo."
+# answer = "Final score is 95 percent."
+
+# Regex ko milega
+
+# 95
+
+
+# Regex ne pakda
+
+# "82"
+
+# To
+
+# match.group()
+
+# return karega
+
+# "82"
+
+
+#  return max(0, min(score, 100)) this line help ki agar llm ne 100 se zyada ya 0 se kam score diya toh usko 0 aur 100 ke beech me le aao.

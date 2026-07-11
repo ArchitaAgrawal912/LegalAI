@@ -1,5 +1,6 @@
 import traceback
 from uuid import UUID
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -19,35 +20,43 @@ async def get_case_details_controller(case_id: UUID, db: AsyncSession):
 
         # 2. Fetch all associated charges (sections)
         query_sec = select(LegalSection).where(
-       LegalSection.case_id == case_id,
-       LegalSection.is_approved == True
-)
+            LegalSection.case_id == case_id,
+            LegalSection.is_approved == True
+        )
+
         sections_result = await db.execute(query_sec)
         sections = sections_result.scalars().all()
 
         # 3. Fetch all associated precedent cases
-        query_prec = select(PrecedentCase).where(PrecedentCase.case_id == case_id)
+        query_prec = select(PrecedentCase).where(
+            PrecedentCase.case_id == case_id
+        )
+
         prec_result = await db.execute(query_prec)
         precedents = prec_result.scalars().all()
 
-        # 4. Stitch them all together into a dictionary that perfectly matches CaseDetailRead
-        Applicable_charges=ChargeRead(
-                id: sec.id,
-                ipc_section: sec.ipc_section,   
-                bns_equivalent: sec.bns_section,
-                explanation: sec.reason,
-                is_approved: sec.is_approved
-                
-        )
-        case_details= CaseDetailRead(
+        # 4. Convert LegalSection objects into ChargeRead objects
+        applicable_charges = [
+            ChargeRead(
+                id=sec.id,
+                ipc_section=sec.ipc_section,
+                bns_equivalent=sec.bns_section,
+                explanation=sec.reason,
+                is_approved=sec.is_approved,
+            )
+            for sec in sections
+        ]
+
+        # 5. Build response
+        case_details = CaseDetailRead(
             id=db_case.id,
             title=db_case.title,
             raw_description=db_case.raw_description,
             llm_summary=db_case.llm_summary,
             lawyer_approved_summary=db_case.lawyer_approved_summary,
             status=db_case.status,
-            applicable_charges=Applicable_charges,
-            precedent_cases=    [
+            applicable_charges=applicable_charges,
+            precedent_cases=[
                 {
                     "id": p.id,
                     "title": p.title,
@@ -58,9 +67,17 @@ async def get_case_details_controller(case_id: UUID, db: AsyncSession):
                 for p in precedents
             ],
         )
+
+        return case_details
+
     except HTTPException:
         raise
+
     except Exception as e:
         print("🚨 ERROR FETCHING CASE DETAILS 🚨")
         traceback.print_exc()
         raise server_error_exc(e)
+    
+    
+    
+    #  ye trace back pura exact bta deta konsi file me kha pe kya err hai kis line me bhi , 

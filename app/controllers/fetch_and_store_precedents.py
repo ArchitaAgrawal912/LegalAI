@@ -164,13 +164,13 @@ async def fetch_and_store_precedents_controller(
         # ==========================================
         clean_precedents = [
             {
-                "id": p.id,
-                "title": p.title,
-                "doc_id": p.doc_id,
-                "doc_url": p.doc_url,
-                "ai_score": p.ai_score,
+                "id": precedent.id,
+                "title": precedent.title,
+                "doc_id": precedent.doc_id,
+                "doc_url": precedent.doc_url,
+                "ai_score": precedent.ai_score,
             }
-            for p in precedents
+            for precedent in precedents
         ]
 
         # Highest AI score first
@@ -192,3 +192,44 @@ async def fetch_and_store_precedents_controller(
         traceback.print_exc()
 
         raise server_error_exc(e)
+    
+    
+    
+    #  combined_sections = " AND ".join(
+                # [f'"{sec}"' for sec in top_sections]
+            # ) this will add AND between sections
+            
+            
+            
+            
+            
+            
+            # await db.execute(
+            #     delete(PrecedentCase).where(
+            #         PrecedentCase.case_id == case_id
+            #     )
+            # ) we used this deleet kyuki maan lo pehle jo precednet aaye the ab 
+            #  advocate ne ek aur ipc add ki and then fetch karne ka truy kia toh pucrane precedn htao and new 
+            # lao  Agar pehle precedent hi nahi hain?
+
+# Koi problem nahi.
+
+# Delete query simply
+
+# 0 rows affected
+
+# bol degi.
+
+# Error nahi aata.
+
+
+
+#  kanoon_url = (
+                    # f"https://indiankanoon.org/doc/{item.doc_id}/"
+                # )
+ ye fronend ko bhejege taaki vo click karke case padh paye
+ 
+ 
+#   reverse =true mean descending sort as by default the sorting is ascending
+
+#   i didnot get why respons echarge and response precedent made

@@ -22,3 +22,9 @@ async def fetch_and_store_precedents(
     kanoon_service: KanoonService = Depends(get_kanoon_service),
 ):
     return await fetch_and_store_precedents_controller(case_id, db, kanoon_service)
+
+
+#  see i waana use this kanoon service class toh mujhe onj bnaana padegga iska now if ye 20 route me aaya toh 20 baar
+#  obj bnana padega so fast api provide this depends() which directly create obj for us 
+#    kanoon_service: KanoonService = Depends(get_kanoon_service), this is syntax to be used
+

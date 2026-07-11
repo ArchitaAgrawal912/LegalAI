@@ -21,7 +21,7 @@ class PrecedentCase(BaseModel, table=True):
     parent_case: Optional["LegalCase"] = Relationship(back_populates="precedents")
     ai_score: float | None = Field(
         default=None, description="The AI-generated relevance score for this precedent"
-    )
+    )  
 
 
 if TYPE_CHECKING:

@@ -52,3 +52,35 @@ class LegalAnalysisService:
 
         result_dict = json.loads(response.choices[0].message.content)
         return [LegalSection(**charge) for charge in result_dict.get("charges", [])]
+#  take each charge from the python dict and put that in list and return taht
+
+# Suppose file ka naam hai
+
+# legal_service.py
+
+# Aur uska module path hai
+
+# app.services.legal_service
+# logger = logging.getLogger(__name__)
+# ban jayega
+
+# Logger named "app.services.legal_service"
+
+# Isse logs dekhte hi pata chal jata hai ki error kis file se aayi.
+
+
+#  def __init__(self): this is constructor and it runs automaticalaly whn obj created
+# Object bante hi
+
+# Groq client create
+# Model id store
+
+# Ek hi baar hota hai.
+
+# ** used to unpack the dict and 
+# json.load convert ai se aane vakli json string to python dict
+
+
+# #  yha validataion lgaya hua hai fn ke aage dekho->legalsection means  ai se jo bhi filed aayege we write in 
+# prompt ki yhi cheez dena jo mere is schema me hai , and this validation is for ki ai se str aai and hume str 
+# chye thi toh shi hai varna err do that is validation err

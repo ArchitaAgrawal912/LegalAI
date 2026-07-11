@@ -116,3 +116,25 @@ class DraftResponse(BaseModel):
 
 class CaseRegenerateRequest(BaseModel):
     description: str
+    
+    
+    
+    # Haan, Field() ka main purpose metadata aur validation dena hota hai, aur iska effect Swagger
+    # (OpenAPI docs) me bhi dikhta hai.
+    
+    # Field() kab use karte hain?
+
+# Jab tumhe:
+
+# ✅ Validation chahiye (min_length, max_length, gt, lt, regex, etc.)
+# ✅ Default value deni ho
+# ✅ Swagger/OpenAPI documentation improve karni ho (description, example, title)
+# ... means elipses and it shows that this field is required
+
+
+# applicable_charges: list[ChargeRead] = []  iska matlab samjho
+# applicable_charges    # Field ka naam
+
+# : list[ChargeRead]    # Iska type
+
+# = []                  # Default value

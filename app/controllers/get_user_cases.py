@@ -1,17 +1,16 @@
 import traceback
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app import crud
 from app.errors import user_not_found_exc, server_error_exc
-
+ 
 
 async def get_user_cases_controller(
     user_id: UUID, search: str | None, skip: int, limit: int, db: AsyncSession
 ):
     try:
         # LOGIC STEP 1: Verify the user actually exists
-        user = await crud.user.get(
+  +      user = await crud.user.get(
             db, id=user_id
         )  # TODO: will be authorised by the authentication Decorator
         if not user:

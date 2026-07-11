@@ -24,3 +24,25 @@ async def get_user_cases(
     db: AsyncSession = Depends(get_db_session),
 ):
     return await get_user_cases_controller(user_id, search, skip, limit, db)
+
+
+#  search bar me  ya toh kuch user seacrh kareag aagr user ne 
+#  kuch nhi dalaand search bda dia toh None jayega vha
+# desscription bas swagger k liye hai
+# if we have 5 cases and we set skip = 2 toh first 2 skip h
+# jayege and baaki 3 aayege
+# ge=2  mean skip value should be >=0
+# Database me
+
+# 1000  matched cases hai 
+
+# Tum bolte ho
+
+# limit=10
+
+# To sirf
+
+# 10 shuru vale matched cases will come
+
+# records milenge.
+#  by default limit=100  lgai hai aur max limit=100 hai
