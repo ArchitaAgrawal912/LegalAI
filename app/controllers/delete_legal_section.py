@@ -1,18 +1,20 @@
 import traceback
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.errors import case_not_found_exc, server_error_exc
 from app.models.legal_section import LegalSection
+from app.models.user import User
 
 
 async def delete_legal_section_controller(
     case_id: UUID,
     section_id: UUID,
+    current_user: User,
     db: AsyncSession,
 ):
     try:
@@ -22,7 +24,14 @@ async def delete_legal_section_controller(
         if not db_case:
             raise case_not_found_exc()
 
-        # 2. Find the section belonging to this case
+        # 2. Ownership check
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to delete this section.",
+            )
+
+        # 3. Find the section belonging to this case
         query = (
             select(LegalSection)
             .where(
@@ -37,14 +46,12 @@ async def delete_legal_section_controller(
 
         if not db_section:
             raise HTTPException(
-                status_code=404,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Legal section not found for this case.",
             )
 
-        # 3. Soft delete
+        # 4. Soft delete
         db_section.is_deleted = True
-
-      
 
         await db.commit()
 

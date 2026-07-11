@@ -14,15 +14,14 @@ from app.schemas.section import ChargeRead
 # ==========================================
 # It is for accepting data from user
 class CaseRequest(BaseModel):
-    # NEW: This forces Pydantic to trim spaces before checking min_length
     model_config = {"str_strip_whitespace": True}
+
     case_description: str = Field(
         ...,
         min_length=10,
-        description="The facts of the legal incident to be analyzed.",
         max_length=5000,
+        description="The facts of the legal incident to be analyzed."
     )
-    user_id: UUID = Field(description="The UUID of the user creating this case.")
 
 
 # This schema is for when a lawyer approves a case and submits their final summary.

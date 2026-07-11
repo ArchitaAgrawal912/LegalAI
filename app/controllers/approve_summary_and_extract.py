@@ -2,7 +2,8 @@ import logging
 import traceback
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi import HTTPException, status
+from app.models.user import User
 from app import crud
 from app.errors import case_not_found_exc, server_error_exc
 from app.schemas.case import CaseSummaryApproveRequest
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 async def approve_summary_and_extract_controller(
     case_id: UUID,
     request: CaseSummaryApproveRequest,
+    current_user: User,
     db: AsyncSession,
     legal_service: LegalAnalysisService,
 ):
@@ -24,6 +26,11 @@ async def approve_summary_and_extract_controller(
         db_case = await crud.legal_case.get(db, id=case_id)
         if not db_case:
             raise case_not_found_exc()
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You are not allowed to access this case.",
+            )
 
         # 2. Save the lawyer's approved summary
         db_case.lawyer_approved_summary = request.lawyer_approved_summary

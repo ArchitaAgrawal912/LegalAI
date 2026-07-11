@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import legal
 from app.api.routes import cases, auth
-from app.db.database import init_db
+from app.api.Dependencies.auth import get_current_user
+
 import contextlib
 import logging
 from app.core.logging_config import setup_logging

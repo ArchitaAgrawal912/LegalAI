@@ -2,21 +2,29 @@ import traceback
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
+from fastapi import HTTPException, status
+from app.models.user import User
 from app import crud
 from app.errors import case_not_found_exc, server_error_exc
 from app.schemas.section import ChargesActionRequest
 from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 
-
 async def finalize_charges_status_controller(
-    case_id: UUID, request: ChargesActionRequest, db: AsyncSession
+    case_id: UUID,
+    request: ChargesActionRequest,
+    current_user: User,
+    db: AsyncSession,
 ):
     try:
         db_case = await crud.legal_case.get(db, id=case_id)
         if not db_case:
             raise case_not_found_exc()
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to modify this case.",
+            )
 
         # 1. Fetch ALL existing draft charges for this case
         query = select(LegalSection).where(LegalSection.case_id == case_id)

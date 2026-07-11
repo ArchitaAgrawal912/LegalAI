@@ -1,6 +1,6 @@
 import traceback
 from uuid import UUID
-
+from app.models.user import User
 from fastapi import HTTPException, status
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ from app.services.llm_similarity_service import llm_similarity_score
 
 async def fetch_and_store_precedents_controller(
     case_id: UUID,
+    current_user: User,
     db: AsyncSession,
     kanoon_service: KanoonService,
 ):
@@ -28,6 +29,11 @@ async def fetch_and_store_precedents_controller(
 
         if not db_case:  
             raise case_not_found_exc()
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to access this case.",
+            )
 
         # ==========================================
         # Fetch Approved Sections
@@ -143,6 +149,7 @@ async def fetch_and_store_precedents_controller(
         db_case.status = "completed"
 
         await db.commit()
+        await db.refresh(db_case)
 
         # ==========================================
         # Response Charges
@@ -171,6 +178,7 @@ async def fetch_and_store_precedents_controller(
                 "ai_score": precedent.ai_score,
             }
             for precedent in precedents
+                # await db.refresh(precedent)
         ]
 
         # Highest AI score first
@@ -227,7 +235,7 @@ async def fetch_and_store_precedents_controller(
 #  kanoon_url = (
                     # f"https://indiankanoon.org/doc/{item.doc_id}/"
                 # )
- ye fronend ko bhejege taaki vo click karke case padh paye
+#  ye fronend ko bhejege taaki vo click karke case padh paye
  
  
 #   reverse =true mean descending sort as by default the sorting is ascending

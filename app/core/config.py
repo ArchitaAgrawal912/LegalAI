@@ -41,7 +41,12 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = aws_secrets.get("GROQ_API_KEY")
     KANOON_API_TOKEN: str = aws_secrets.get("KANOON_API_TOKEN")
     DATABASE_URL: str = aws_secrets.get("DATABASE_URL")
-    GEMINI_API_KEY: str = aws_secrets.get("GEMINI_API_KEY")
+    
+    JWT_SECRET_KEY: str = aws_secrets.get("JWT_SECRET_KEY")
+    JWT_ALGORITHM: str = aws_secrets.get("JWT_ALGORITHM")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+        aws_secrets.get("ACCESS_TOKEN_EXPIRE_MINUTES", 60)
+    )
 
     # No .env fallback
     model_config = SettingsConfigDict(extra="ignore")
@@ -53,7 +58,9 @@ class Settings(BaseSettings):
             "GROQ_API_KEY": self.GROQ_API_KEY,
             "KANOON_API_TOKEN": self.KANOON_API_TOKEN,
             "DATABASE_URL": self.DATABASE_URL,
-            "GEMINI_API_KEY": self.GEMINI_API_KEY,
+        
+            "JWT_SECRET_KEY": self.JWT_SECRET_KEY,
+            "JWT_ALGORITHM": self.JWT_ALGORITHM,
         }
 
         missing = [key for key, value in required_secrets.items() if not value]
