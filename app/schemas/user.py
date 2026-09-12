@@ -10,6 +10,10 @@ class UserCreate(BaseModel):
 
     @field_validator("phone_no")
     @classmethod
+    # UserCreate= cls
+
+# You don't actually use it here, but Pydantic
+# expects the validator to be a class method.
     def validate_phone(cls, value):
         if value is None:
             return value

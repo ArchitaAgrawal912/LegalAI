@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter, Depends, status
 from app.api.dependencies import get_legal_service, get_kanoon_service
+from app.api.Dependencies.auth import get_current_user
+from app.models.user import User
 from app.errors import server_error_exc
 from app.schemas.case import CaseRequest, CaseResponse
 from app.services.legal_service import LegalAnalysisService
@@ -21,9 +23,8 @@ router = APIRouter(prefix="/legal", tags=["Legal Intelligence"])
 async def analyze_incident(
     request: CaseRequest,
     legal_service: LegalAnalysisService = Depends(get_legal_service),
-    kanoon_service: KanoonService = Depends(
-        get_kanoon_service
-    ),  # <-- NEW: Inject Kanoon into the endpoint
+    kanoon_service: KanoonService = Depends(get_kanoon_service),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         # 1. Get the raw charges from the AI (Groq)

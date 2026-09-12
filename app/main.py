@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import legal
 from app.api.routes import cases, auth
-from app.db.database import init_db
+from app.api.Dependencies.auth import get_current_user
+
 import contextlib
 import logging
 from app.core.logging_config import setup_logging
@@ -49,10 +50,9 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-        ],  # Restrict this to your actual frontend domain in production
+            "http://3.27.114.106",  # EC2 Frontend ki IP
+            "http://localhost:5173", # Local dev ke liye
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

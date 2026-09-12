@@ -1,7 +1,8 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.api.Dependencies.auth import get_current_user
+from app.models.user import User
 from app.api.dependencies import get_db_session
 from app.schemas.case import CaseDetailRead
 from app.controllers import get_case_details_controller
@@ -15,5 +16,13 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Fetch full case details including sections and precedents",
 )
-async def get_case_details(case_id: UUID, db: AsyncSession = Depends(get_db_session)):
-    return await get_case_details_controller(case_id, db)
+async def get_case_details(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await get_case_details_controller(
+        case_id,
+        current_user,
+        db,
+    )

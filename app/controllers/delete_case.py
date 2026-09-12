@@ -1,16 +1,20 @@
 import traceback
 from uuid import UUID
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update
-
+from fastapi import HTTPException, status
+from app.models.user import User
 from app.errors import case_not_found_exc, server_error_exc
 from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 
 
-async def delete_case_controller(case_id: UUID, db: AsyncSession):
+async def delete_case_controller(
+    case_id: UUID,
+    current_user: User,
+    db: AsyncSession,
+):
     try:
         # 1. Fetch the case (Ensuring it isn't already deleted)
         query = select(LegalCase).where(
@@ -21,6 +25,11 @@ async def delete_case_controller(case_id: UUID, db: AsyncSession):
 
         if not db_case:
             raise case_not_found_exc()
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to delete this case.",
+            )
 
         # 2. Soft delete the parent case
         db_case.is_deleted = True

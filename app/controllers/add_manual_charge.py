@@ -1,7 +1,8 @@
 import traceback
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi import HTTPException, status
+from app.models.user import User
 from app import crud
 from app.errors import case_not_found_exc, server_error_exc
 from app.schemas.section import NewChargeRequest
@@ -9,12 +10,17 @@ from app.models.legal_section import LegalSection
 
 
 async def add_manual_charge_controller(
-    case_id: UUID, request: NewChargeRequest, db: AsyncSession
+    case_id: UUID, request: NewChargeRequest, db: AsyncSession,current_user: User
 ):
     try:
         db_case = await crud.legal_case.get(db, id=case_id)
         if not db_case:
             raise case_not_found_exc()
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+               status_code=status.HTTP_403_FORBIDDEN,
+               detail="You are not allowed to modify this case.",
+    )
 
         # Create the brand new manual charge
         new_charge = LegalSection(

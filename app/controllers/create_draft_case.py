@@ -3,31 +3,26 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.errors import user_not_found_exc, server_error_exc
+from app.errors import server_error_exc
 from app.schemas.case import CaseRequest
 from app.models.legal_case import LegalCase
 from app.services.legal_service import LegalAnalysisService
-
+from app.models.user import User
+from fastapi import HTTPException
 
 async def create_draft_case_controller(
-    request: CaseRequest, db: AsyncSession, legal_service: LegalAnalysisService
+    request: CaseRequest,
+    current_user: User,
+    db: AsyncSession,
+    legal_service: LegalAnalysisService,
 ):
     try:
-        # 1. Verify user
-        user = await crud.user.get(db, id=request.user_id)
-        if not user:
-            raise user_not_found_exc()
-
-        # 2. Call Groq ONLY for the summary and title
-        print("🚀 Calling Groq for Draft Summary...")
         draft_result = await legal_service.draft_summary(
             case_description=request.case_description
         )
 
-        # 3. Save as "pending_review"
         db_case = LegalCase(
-            # Generate a new UUID for the case
-            user_id=request.user_id,
+            user_id=current_user.id,
             title=draft_result.title,
             raw_description=request.case_description,
             llm_summary=draft_result.summary,
@@ -39,8 +34,8 @@ async def create_draft_case_controller(
         await db.refresh(db_case)
 
         return db_case
-    except Exception as e:
-        await db.rollback()
-        print("🚨 CRITICAL ERROR IN PHASE 1 🚨")
+
+    except Exception:
         traceback.print_exc()
-        raise server_error_exc(e)
+        await db.rollback()
+        raise server_error_exc

@@ -14,15 +14,14 @@ from app.schemas.section import ChargeRead
 # ==========================================
 # It is for accepting data from user
 class CaseRequest(BaseModel):
-    # NEW: This forces Pydantic to trim spaces before checking min_length
     model_config = {"str_strip_whitespace": True}
+
     case_description: str = Field(
         ...,
         min_length=10,
-        description="The facts of the legal incident to be analyzed.",
         max_length=5000,
+        description="The facts of the legal incident to be analyzed."
     )
-    user_id: UUID = Field(description="The UUID of the user creating this case.")
 
 
 # This schema is for when a lawyer approves a case and submits their final summary.
@@ -116,3 +115,25 @@ class DraftResponse(BaseModel):
 
 class CaseRegenerateRequest(BaseModel):
     description: str
+    
+    
+    
+    # Haan, Field() ka main purpose metadata aur validation dena hota hai, aur iska effect Swagger
+    # (OpenAPI docs) me bhi dikhta hai.
+    
+    # Field() kab use karte hain?
+
+# Jab tumhe:
+
+# ✅ Validation chahiye (min_length, max_length, gt, lt, regex, etc.)
+# ✅ Default value deni ho
+# ✅ Swagger/OpenAPI documentation improve karni ho (description, example, title)
+# ... means elipses and it shows that this field is required
+
+
+# applicable_charges: list[ChargeRead] = []  iska matlab samjho
+# applicable_charges    # Field ka naam
+
+# : list[ChargeRead]    # Iska type
+
+# = []                  # Default value

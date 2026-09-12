@@ -2,7 +2,8 @@ import logging
 import traceback
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi import HTTPException, status
+from app.models.user import User
 from app import crud
 from app.errors import case_not_found_exc, server_error_exc
 from app.schemas.case import CaseSummaryApproveRequest
@@ -10,12 +11,13 @@ from app.models.legal_case import LegalCase
 from app.models.legal_section import LegalSection
 from app.services.legal_service import LegalAnalysisService
 
-# Set up production logger
+#  up production logger
 logger = logging.getLogger(__name__)
 
 async def approve_summary_and_extract_controller(
     case_id: UUID,
     request: CaseSummaryApproveRequest,
+    current_user: User,
     db: AsyncSession,
     legal_service: LegalAnalysisService,
 ):
@@ -24,6 +26,11 @@ async def approve_summary_and_extract_controller(
         db_case = await crud.legal_case.get(db, id=case_id)
         if not db_case:
             raise case_not_found_exc()
+        if db_case.user_id != current_user.id:
+            raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You are not allowed to access this case.",
+            )
 
         # 2. Save the lawyer's approved summary
         db_case.lawyer_approved_summary = request.lawyer_approved_summary
@@ -45,6 +52,8 @@ async def approve_summary_and_extract_controller(
                     reason=charge.explanation,
                     source="LLM",
                 )
+                
+                
                 db.add(db_section)
                 saved_db_charges.append(db_section) # <-- CHANGE 1: Capture the DB objects
 
@@ -66,3 +75,27 @@ async def approve_summary_and_extract_controller(
         await db.rollback()
         logger.error("CRITICAL ERROR IN PHASE 2", exc_info=True, extra={"case_id": str(case_id)})
         raise server_error_exc(e)
+    
+    
+    
+#     db.add(db_section)
+
+# SQLAlchemy internally dekhta hai
+
+# Ye object kis class ka hai?
+
+# ↓
+
+# LegalSection
+
+# ↓
+
+# LegalSection kis table se mapped hai?
+
+# ↓
+
+# LegalSection
+
+# To wo bolta hai
+
+# "Accha, is object ko LegalSection table me insert karna hai."

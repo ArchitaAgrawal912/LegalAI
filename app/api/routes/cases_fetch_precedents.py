@@ -1,7 +1,8 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.api.Dependencies.auth import get_current_user
+from app.models.user import User
 from app.api.dependencies import get_db_session, get_kanoon_service
 from app.schemas.case import CaseResponse
 from app.services.kanoon_service import KanoonService
@@ -20,5 +21,17 @@ async def fetch_and_store_precedents(
     case_id: UUID,
     db: AsyncSession = Depends(get_db_session),
     kanoon_service: KanoonService = Depends(get_kanoon_service),
+    current_user: User = Depends(get_current_user),
 ):
-    return await fetch_and_store_precedents_controller(case_id, db, kanoon_service)
+    return await fetch_and_store_precedents_controller(
+        case_id,
+        current_user,
+        db,
+        kanoon_service,
+    )
+
+
+#  see i waana use this kanoon service class toh mujhe onj bnaana padegga iska now if ye 20 route me aaya toh 20 baar
+#  obj bnana padega so fast api provide this depends() which directly create obj for us 
+#    kanoon_service: KanoonService = Depends(get_kanoon_service), this is syntax to be used
+
